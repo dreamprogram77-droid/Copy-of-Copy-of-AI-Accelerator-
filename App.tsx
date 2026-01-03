@@ -6,10 +6,7 @@ import { Language, getTranslation } from './services/i18nService';
 import { Registration } from './components/Registration';
 import { Login } from './components/Login';
 import { LandingPage } from './components/LandingPage';
-import { RoadmapPage } from './components/RoadmapPage';
-import { PathFinder } from './components/PathFinder';
 import { DashboardHub } from './components/DashboardHub';
-import { ToolsPage } from './components/ToolsPage';
 import { LegalPortal, LegalType } from './components/LegalPortal';
 import { AchievementsPage } from './components/AchievementsPage';
 import { MentorshipPage } from './components/MentorshipPage';
@@ -21,6 +18,8 @@ import { CoFounderPortal } from './components/CoFounderPortal';
 import { ForeignInvestmentPage } from './components/ForeignInvestmentPage';
 import { IncubationApply } from './components/IncubationApply';
 import { ScreeningPortal } from './components/ScreeningPortal';
+import { RoadmapPage } from './components/RoadmapPage';
+import { ToolsPage } from './components/ToolsPage';
 
 function App() {
   const [stage, setStage] = useState<FiltrationStage>(FiltrationStage.LANDING);
@@ -57,14 +56,16 @@ function App() {
           industry: startup?.industry || '',
         });
         
-        // Logical Routing based on Application Status
+        // Logical Routing Based on Incubation Status
         if (userRec.role === 'STARTUP' && startup) {
-          if (startup.applicationStatus === 'PENDING_SCREENING' || startup.applicationStatus === 'REJECTED') {
+          if (startup.status === 'PENDING') {
+            // New Registration -> Show Official Join Request Form
             setStage(FiltrationStage.INCUBATION_APPLY);
-          } else if (startup.applicationStatus === 'APPROVED') {
+          } else if (startup.status === 'APPROVED') {
+            // Passed/Approved -> Show Full Incubated Company Dashboard
             setStage(FiltrationStage.DASHBOARD);
           } else {
-            setStage(FiltrationStage.SCREENING_WAIT);
+            setStage(FiltrationStage.DASHBOARD);
           }
         } else {
           setStage(FiltrationStage.DASHBOARD);
@@ -85,20 +86,6 @@ function App() {
   const handleRegister = (profile: UserProfile) => {
     storageService.registerUser({ ...profile }); 
     hydrateSession();
-  };
-
-  const handleTransformToPartner = () => {
-    if (!currentUser) return;
-    
-    // 1. Update user role in storage
-    storageService.updateUser(currentUser.uid, { role: 'PARTNER' });
-    
-    // 2. Clear startup application so they don't get redirected back here
-    storageService.updateStartupApplication(currentUser.startupId!, 'NEEDS_COMPLETION', 0, 'User transformed to Partner track');
-    
-    // 3. Hydrate and Navigate to Partner Dashboard
-    hydrateSession();
-    setStage(FiltrationStage.DASHBOARD);
   };
 
   return (
@@ -129,15 +116,6 @@ function App() {
         <IncubationApply user={currentUser} onSubmitted={hydrateSession} />
       )}
 
-      {stage === FiltrationStage.SCREENING_WAIT && currentUser && (
-        <ScreeningPortal 
-          startup={storageService.getAllStartups().find(s => s.projectId === currentUser.startupId)!} 
-          onContinue={() => setStage(FiltrationStage.DASHBOARD)}
-          onRetry={() => setStage(FiltrationStage.INCUBATION_APPLY)}
-          onJoinAsPartner={handleTransformToPartner}
-        />
-      )}
-
       {stage === FiltrationStage.LOGIN && (
         <Login 
           lang={currentLang} 
@@ -151,7 +129,6 @@ function App() {
           lang={currentLang}
           role={registrationRole}
           onRegister={handleRegister} 
-          onStaffLogin={() => {}} 
         />
       )}
 
@@ -167,6 +144,17 @@ function App() {
           />
         )
       )}
+
+      {/* Other components... */}
+      {stage === FiltrationStage.ROADMAP && <RoadmapPage onBack={() => setStage(FiltrationStage.LANDING)} onStart={() => setStage(FiltrationStage.WELCOME)} />}
+      {stage === FiltrationStage.TOOLS && <ToolsPage onBack={() => setStage(FiltrationStage.LANDING)} />}
+      {stage === FiltrationStage.ACHIEVEMENTS && <AchievementsPage onBack={() => setStage(FiltrationStage.LANDING)} />}
+      {stage === FiltrationStage.MENTORSHIP && <MentorshipPage onBack={() => setStage(FiltrationStage.LANDING)} />}
+      {stage === FiltrationStage.INCUBATION_PROGRAM && <IncubationProgram onBack={() => setStage(FiltrationStage.LANDING)} onApply={() => setStage(FiltrationStage.WELCOME)} />}
+      {stage === FiltrationStage.MEMBERSHIPS && <MembershipsPage onBack={() => setStage(FiltrationStage.LANDING)} onSelect={() => setStage(FiltrationStage.WELCOME)} />}
+      {stage === FiltrationStage.PARTNER_CONCEPT && <PartnerConceptPage onBack={() => setStage(FiltrationStage.LANDING)} onRegister={() => setStage(FiltrationStage.WELCOME)} />}
+      {stage === FiltrationStage.AI_MENTOR_CONCEPT && <AIMentorConceptPage onBack={() => setStage(FiltrationStage.LANDING)} onStart={() => setStage(FiltrationStage.WELCOME)} />}
+      {stage === FiltrationStage.FOREIGN_INVESTMENT && <ForeignInvestmentPage onBack={() => setStage(FiltrationStage.LANDING)} onApply={() => setStage(FiltrationStage.WELCOME)} />}
       
       <LegalPortal type={activeLegal} onClose={() => setActiveLegal(null)} />
     </div>

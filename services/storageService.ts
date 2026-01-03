@@ -1,15 +1,12 @@
 
-import { UserRecord, StartupRecord, UserProfile, TaskRecord, INITIAL_ROADMAP, LevelData, ApplicationStatus, ServiceRequest, ProgramRating, PartnerProfile } from '../types';
+import { UserRecord, StartupRecord, UserProfile, TaskRecord, INITIAL_ROADMAP, LevelData, ACADEMY_BADGES, ServiceRequest, ProgramRating, PartnerProfile } from '../types';
 
 const DB_KEYS = {
   USERS: 'db_users',
   STARTUPS: 'db_startups',
   TASKS: 'db_tasks',
   ROADMAP: 'db_roadmap',
-  SESSION: 'db_current_session',
-  SERVICES: 'db_services',
-  RATINGS: 'db_ratings',
-  PARTNERS: 'db_partners'
+  SESSION: 'db_current_session'
 };
 
 const safeSetItem = (key: string, value: string): boolean => {
@@ -18,7 +15,7 @@ const safeSetItem = (key: string, value: string): boolean => {
     return true;
   } catch (e) {
     if (e instanceof DOMException && (e.code === 22 || e.code === 1014 || e.name === 'QuotaExceededError')) {
-      console.warn(`Storage quota exceeded. Clean binary data first.`);
+      console.warn(`Storage quota exceeded for key: ${key}. Attempting recovery...`);
       return false;
     }
     throw e;
@@ -26,7 +23,6 @@ const safeSetItem = (key: string, value: string): boolean => {
 };
 
 export const storageService = {
-  /* Registers a new user and initializes their roadmap and startup record */
   registerUser: (profile: UserProfile): { user: UserRecord; startup?: StartupRecord } => {
     const uid = profile.uid || `u_${Date.now()}`;
     const role = profile.role || 'STARTUP';
@@ -50,7 +46,6 @@ export const storageService = {
         description: profile.startupDescription || '',
         industry: profile.industry || '',
         status: 'PENDING',
-        applicationStatus: 'PENDING_SCREENING',
         metrics: { readiness: 10, tech: 0, market: 0 },
         aiOpinion: 'قيد التقييم الأولي',
         lastActivity: new Date().toISOString(),
@@ -79,32 +74,21 @@ export const storageService = {
     return { user: newUser, startup: newStartup };
   },
 
-  /* Updates the status and fit score of a startup application */
-  updateStartupApplication: (projectId: string, status: ApplicationStatus, fitScore: number, feedback: string) => {
-    const startups = storageService.getAllStartups();
-    const updated = startups.map(s => s.projectId === projectId ? { 
-      ...s, 
-      applicationStatus: status, 
-      fitScore, 
-      aiFeedback: feedback,
-      status: status === 'APPROVED' ? 'APPROVED' as const : s.status
-    } : s);
-    safeSetItem(DB_KEYS.STARTUPS, JSON.stringify(updated));
+  updateUserBadges: (uid: string, badgeId: string) => {
+    const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+    const updatedUsers = users.map((u: any) => {
+      if (u.uid === uid) {
+        const badges = u.earnedBadges || [];
+        if (!badges.includes(badgeId)) {
+          return { ...u, earnedBadges: [...badges, badgeId] };
+        }
+      }
+      return u;
+    });
+    safeSetItem(DB_KEYS.USERS, JSON.stringify(updatedUsers));
   },
 
-  /* Returns the roadmap for a specific user */
-  getCurrentRoadmap: (uid: string): LevelData[] => {
-    const data = localStorage.getItem(`${DB_KEYS.ROADMAP}_${uid}`);
-    return data ? JSON.parse(data) : INITIAL_ROADMAP;
-  },
-
-  /* Returns all tasks assigned to a specific user */
-  getUserTasks: (uid: string): TaskRecord[] => {
-    const tasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
-    return tasks.filter((t: any) => t.uid === uid);
-  },
-
-  /* Records a task submission and AI review results */
+  // Add missing submitTask method
   submitTask: (uid: string, taskId: string, submission: { fileData: string; fileName: string }, aiReview?: any) => {
     const allTasks: TaskRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
     const updatedTasks = allTasks.map(t => {
@@ -112,7 +96,10 @@ export const storageService = {
         return {
           ...t,
           status: 'SUBMITTED' as const,
-          submission: { ...submission, submittedAt: new Date().toISOString() },
+          submission: {
+            ...submission,
+            submittedAt: new Date().toISOString()
+          },
           aiReview
         };
       }
@@ -121,7 +108,82 @@ export const storageService = {
     safeSetItem(DB_KEYS.TASKS, JSON.stringify(updatedTasks));
   },
 
-  /* Marks a task as approved and unlocks the next level/task */
+  // Add missing updateUser method
+  updateUser: (uid: string, data: Partial<UserRecord>) => {
+    const users = storageService.getAllUsers();
+    const updated = users.map(u => u.uid === uid ? { ...u, ...data } : u);
+    safeSetItem(DB_KEYS.USERS, JSON.stringify(updated));
+  },
+
+  // Add missing updateStartup method
+  updateStartup: (projectId: string, data: Partial<StartupRecord>) => {
+    const startups = storageService.getAllStartups();
+    const updated = startups.map(s => s.projectId === projectId ? { ...s, ...data } : s);
+    safeSetItem(DB_KEYS.STARTUPS, JSON.stringify(updated));
+  },
+
+  // Add missing requestService method
+  requestService: (uid: string, serviceId: string, packageId: string, details: string) => {
+    const requests = JSON.parse(localStorage.getItem('db_service_requests') || '[]');
+    const newRequest: ServiceRequest = {
+      id: `sr_${Date.now()}`,
+      uid,
+      serviceId,
+      packageId,
+      details,
+      status: 'PENDING',
+      createdAt: new Date().toISOString()
+    };
+    safeSetItem('db_service_requests', JSON.stringify([...requests, newRequest]));
+  },
+
+  // Add missing getUserServiceRequests method
+  getUserServiceRequests: (uid: string): ServiceRequest[] => {
+    const requests = JSON.parse(localStorage.getItem('db_service_requests') || '[]');
+    return requests.filter((r: any) => r.uid === uid);
+  },
+
+  // Add missing loginUser method
+  loginUser: (email: string): { user: UserRecord; startup?: StartupRecord } | null => {
+    const users = storageService.getAllUsers();
+    const user = users.find(u => u.email === email);
+    if (!user) return null;
+    
+    const startups = storageService.getAllStartups();
+    const startup = startups.find(s => s.ownerId === user.uid);
+    
+    safeSetItem(DB_KEYS.SESSION, JSON.stringify({ uid: user.uid, projectId: startup?.projectId }));
+    return { user, startup };
+  },
+
+  // Add missing getProgramRating method
+  getProgramRating: (uid: string): ProgramRating | null => {
+    const ratings = JSON.parse(localStorage.getItem('db_program_ratings') || '{}');
+    return ratings[uid] || null;
+  },
+
+  // Add missing saveProgramRating method
+  saveProgramRating: (uid: string, rating: ProgramRating) => {
+    const ratings = JSON.parse(localStorage.getItem('db_program_ratings') || '{}');
+    ratings[uid] = rating;
+    safeSetItem('db_program_ratings', JSON.stringify(ratings));
+  },
+
+  // Add missing getAllPartners method
+  getAllPartners: (): PartnerProfile[] => JSON.parse(localStorage.getItem('db_partners') || '[]'),
+  
+  // Add missing registerAsPartner method
+  registerAsPartner: (profile: PartnerProfile) => {
+    const partners = storageService.getAllPartners();
+    const exists = partners.findIndex(p => p.uid === profile.uid);
+    if (exists > -1) {
+      partners[exists] = profile;
+    } else {
+      partners.push(profile);
+    }
+    safeSetItem('db_partners', JSON.stringify(partners));
+  },
+
   approveTask: (uid: string, taskId: string) => {
     const allTasks: TaskRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
     const currentTask = allTasks.find(t => t.id === taskId);
@@ -133,30 +195,40 @@ export const storageService = {
       return t;
     });
     safeSetItem(DB_KEYS.TASKS, JSON.stringify(updatedTasks));
+
+    // Award Badge
+    const badge = ACADEMY_BADGES.find(b => b.levelId === currentTask.levelId);
+    if (badge) {
+      storageService.updateUserBadges(uid, badge.id);
+    }
+
+    const roadmap = storageService.getCurrentRoadmap(uid);
+    const updatedRoadmap = roadmap.map(l => {
+      if (l.id === currentTask.levelId) return { ...l, isCompleted: true };
+      if (l.id === currentTask.levelId + 1) return { ...l, isLocked: false };
+      return l;
+    });
+    safeSetItem(`${DB_KEYS.ROADMAP}_${uid}`, JSON.stringify(updatedRoadmap));
   },
 
-  /* Validates login credentials and starts a session */
-  loginUser: (email: string) => {
-    const users = storageService.getAllUsers();
-    const user = users.find(u => u.email === email);
-    if (!user) return null;
-    const startups = storageService.getAllStartups();
-    const startup = startups.find(s => s.ownerId === user.uid);
-    safeSetItem(DB_KEYS.SESSION, JSON.stringify({ uid: user.uid, projectId: startup?.projectId }));
-    return { user, startup };
+  getCurrentRoadmap: (uid: string): LevelData[] => {
+    const data = localStorage.getItem(`${DB_KEYS.ROADMAP}_${uid}`);
+    return data ? JSON.parse(data) : INITIAL_ROADMAP;
   },
 
-  /* Returns the currently active session */
+  getUserTasks: (uid: string): TaskRecord[] => {
+    const tasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
+    return tasks.filter((t: any) => t.uid === uid);
+  },
+
   getCurrentSession: () => {
     const session = localStorage.getItem(DB_KEYS.SESSION);
     return session ? JSON.parse(session) : null;
   },
 
-  /* Bulk data retrieval methods */
   getAllUsers: (): UserRecord[] => JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]'),
   getAllStartups: (): StartupRecord[] => JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]'),
   
-  /* Seeds initial demo accounts if the database is empty */
   seedDemoAccounts: () => {
     if (localStorage.getItem(DB_KEYS.USERS)) return;
     storageService.registerUser({
@@ -164,70 +236,5 @@ export const storageService = {
        agreedToTerms: true, agreedToContract: true, startupName: 'تيك-لوجيك (Demo)', 
        industry: 'Technology', startupDescription: 'منصة ذكية لإدارة اللوجستيات',
     });
-  },
-
-  /* Returns service requests for a specific user */
-  getUserServiceRequests: (uid: string): ServiceRequest[] => {
-    const data = localStorage.getItem(DB_KEYS.SERVICES);
-    const all = data ? JSON.parse(data) : [];
-    return all.filter((r: any) => r.uid === uid);
-  },
-
-  /* Updates core user record */
-  updateUser: (uid: string, updates: Partial<UserRecord>) => {
-    const all = storageService.getAllUsers();
-    const updated = all.map(u => u.uid === uid ? { ...u, ...updates } : u);
-    safeSetItem(DB_KEYS.USERS, JSON.stringify(updated));
-  },
-
-  /* Updates core startup record */
-  updateStartup: (projectId: string, updates: Partial<StartupRecord>) => {
-    const all = storageService.getAllStartups();
-    const updated = all.map(s => s.projectId === projectId ? { ...s, ...updates } : s);
-    safeSetItem(DB_KEYS.STARTUPS, JSON.stringify(updated));
-  },
-
-  /* Submits a new service execution request */
-  requestService: (uid: string, serviceId: string, packageId: string, details: string) => {
-    const data = localStorage.getItem(DB_KEYS.SERVICES);
-    const all = data ? JSON.parse(data) : [];
-    const newReq: ServiceRequest = {
-      id: `sr_${Date.now()}`,
-      uid,
-      serviceId,
-      packageId,
-      details,
-      status: 'PENDING'
-    };
-    safeSetItem(DB_KEYS.SERVICES, JSON.stringify([...all, newReq]));
-  },
-
-  /* Returns program evaluation rating for a user */
-  getProgramRating: (uid: string): ProgramRating | null => {
-    const data = localStorage.getItem(`${DB_KEYS.RATINGS}_${uid}`);
-    return data ? JSON.parse(data) : null;
-  },
-
-  /* Saves program evaluation rating for a user */
-  saveProgramRating: (uid: string, rating: ProgramRating) => {
-    safeSetItem(`${DB_KEYS.RATINGS}_${uid}`, JSON.stringify(rating));
-  },
-
-  /* Returns all registered partner profiles */
-  getAllPartners: (): PartnerProfile[] => {
-    const data = localStorage.getItem(DB_KEYS.PARTNERS);
-    return data ? JSON.parse(data) : [];
-  },
-
-  /* Registers or updates a partner profile */
-  registerAsPartner: (profile: PartnerProfile) => {
-    const all = storageService.getAllPartners();
-    const exists = all.find(p => p.uid === profile.uid);
-    if (exists) {
-      const updated = all.map(p => p.uid === profile.uid ? profile : p);
-      safeSetItem(DB_KEYS.PARTNERS, JSON.stringify(updated));
-    } else {
-      safeSetItem(DB_KEYS.PARTNERS, JSON.stringify([...all, profile]));
-    }
   }
 };

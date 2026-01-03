@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { UserRole, UserProfile, LevelData, TaskRecord, ProgramRating, ACADEMY_BADGES, FiltrationStage, SECTORS } from '../types';
+import { UserRole, UserProfile, LevelData, TaskRecord, ProgramRating, ACADEMY_BADGES, SECTORS } from '../types';
 import { playPositiveSound, playCelebrationSound } from '../services/audioService';
 import { storageService } from '../services/storageService';
 import { LevelView } from './LevelView';
@@ -45,7 +46,7 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
           ...currentUser,
           startupName: startup.name,
           startupDescription: startup.description,
-          industry: startup.industry,
+          industry: startup.industry || 'Artificial Intelligence (AI)',
           website: startup.website,
           linkedin: startup.linkedin,
           startupBio: startup.startupBio,
@@ -102,7 +103,6 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
     }, 800);
   };
 
-  // Fix: Defined handleEvaluationSubmit to persist the program rating and update local state
   const handleEvaluationSubmit = (rating: ProgramRating) => {
     storageService.saveProgramRating(user.uid, rating);
     setExistingRating(rating);
@@ -217,7 +217,7 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
 
         {activeTab === 'profile' && (
           <div className="max-w-4xl mx-auto w-full space-y-10 animate-fade-up pb-20">
-            {/* Company Basic Details Section */}
+            {/* Section 1: Basic Company Details */}
             <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-10">
                <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">🏢</div>
@@ -225,7 +225,6 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
                </div>
 
                <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                  {/* Logo Upload Column */}
                   <div className="md:col-span-1 flex flex-col items-center gap-6">
                      <label className={labelClass}>شعار الشركة</label>
                      <div 
@@ -242,10 +241,8 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
                         </div>
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
                      </div>
-                     <p className="text-[10px] font-bold text-slate-400">رفع صورة للشركة</p>
                   </div>
 
-                  {/* Inputs Column */}
                   <div className="md:col-span-2 space-y-8">
                      <div className="space-y-2">
                         <label className={labelClass}>اسم الشركة</label>
@@ -278,7 +275,7 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
                </div>
             </div>
 
-            {/* Specialization Section */}
+            {/* Section 2: Specialization */}
             <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
                <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">🎯</div>
@@ -308,23 +305,17 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
                   </div>
                   <div className="md:col-span-2 space-y-2">
                      <label className={labelClass}>الموقع الالكتروني</label>
-                     <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xs">https://</span>
-                        <input 
-                           className={inputClass + " pl-16"} 
-                           placeholder="www.company.com"
-                           value={profileData.website?.replace('https://', '')} 
-                           onChange={e => setProfileData({...profileData, website: 'https://' + e.target.value})} 
-                        />
-                     </div>
+                     <input 
+                        className={inputClass} 
+                        placeholder="https://www.company.com"
+                        value={profileData.website} 
+                        onChange={e => setProfileData({...profileData, website: e.target.value})} 
+                     />
                   </div>
-               </div>
-               <div className="pt-4 flex justify-end">
-                  <button onClick={handleSaveProfile} className="text-blue-600 font-black text-xs hover:underline uppercase tracking-widest">حفظ التغييرات</button>
                </div>
             </div>
 
-            {/* Social Media Section */}
+            {/* Section 3: Social Media */}
             <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
                <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">🌐</div>
@@ -346,12 +337,9 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
                      <input className={inputClass} placeholder="@username" />
                   </div>
                </div>
-               <div className="pt-4 flex justify-end">
-                  <button onClick={handleSaveProfile} className="text-blue-600 font-black text-xs hover:underline uppercase tracking-widest">حفظ التغييرات</button>
-               </div>
             </div>
 
-            {/* Detailed Description Section */}
+            {/* Section 4: Detailed Description */}
             <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
                <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center text-xl">📝</div>
@@ -482,6 +470,45 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
                  onSubmit={handleEvaluationSubmit} 
                />
              )}
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="max-w-2xl mx-auto animate-fade-up space-y-8">
+             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center text-xl">🔒</div>
+                  <h3 className="text-2xl font-black text-slate-900">أمان الحساب</h3>
+                </div>
+                <div className="space-y-6">
+                   <div className="space-y-2">
+                      <label className={labelClass}>كلمة المرور الحالية</label>
+                      <input type="password" className={inputClass} placeholder="••••••••" />
+                   </div>
+                   <div className="space-y-2">
+                      <label className={labelClass}>كلمة المرور الجديدة</label>
+                      <input type="password" className={inputClass} placeholder="••••••••" />
+                   </div>
+                   <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm shadow-lg">تحديث كلمة المرور</button>
+                </div>
+             </div>
+
+             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center text-xl">🔔</div>
+                  <h3 className="text-2xl font-black text-slate-900">التنبيهات</h3>
+                </div>
+                <div className="space-y-4">
+                   <label className="flex items-center justify-between cursor-pointer group">
+                      <span className="font-bold text-slate-700">تنبيهات المخرجات والمهام</span>
+                      <input type="checkbox" className="w-6 h-6 accent-blue-600" defaultChecked />
+                   </label>
+                   <label className="flex items-center justify-between cursor-pointer group">
+                      <span className="font-bold text-slate-700">تنبيهات المستشار الذكي</span>
+                      <input type="checkbox" className="w-6 h-6 accent-blue-600" defaultChecked />
+                   </label>
+                </div>
+             </div>
           </div>
         )}
       </main>

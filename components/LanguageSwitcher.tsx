@@ -36,19 +36,15 @@ export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ currentLang,
           ))}
         </div>
       ) : (
-        <div className="relative group">
-          <select 
-            value={currentLang} 
-            onChange={(e) => onLanguageChange(e.target.value as Language)}
-            className="bg-transparent text-[10px] font-black border-none outline-none cursor-pointer text-slate-500 hover:text-blue-600 transition-colors uppercase tracking-widest"
-          >
-            {LANGUAGES.map(l => (
-              <option key={l.code} value={l.code} className="text-slate-900">
-                {l.flag} {l.code.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select 
+          value={currentLang} 
+          onChange={(e) => onLanguageChange(e.target.value as Language)}
+          className="bg-transparent text-xs font-bold border-none outline-none cursor-pointer text-slate-500 hover:text-blue-600 transition-colors"
+        >
+          {LANGUAGES.map(l => (
+            <option key={l.code} value={l.code} className="text-slate-900">{l.flag} {l.label}</option>
+          ))}
+        </select>
       )}
     </div>
   );
