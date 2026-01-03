@@ -80,7 +80,7 @@ interface LevelViewProps {
   onRequestMentorship?: () => void;
 }
 
-enum Step { LOADING_CONTENT, LEARN, EXERCISE, LOADING_QUIZ, QUIZ, OFFICIAL_TASK, COMPLETED }
+enum Step { LOADING_CONTENT, LEARN, EXERCISE, LOADING_QUIZ, QUIZ, COMPLETED }
 
 export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComplete, onBack, onSubmitTask, onRequestMentorship }) => {
   const [step, setStep] = useState<Step>(Step.LOADING_CONTENT);
@@ -91,14 +91,11 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
   const [currentContentPage, setCurrentContentPage] = useState(0);
   const [revealedInsights, setRevealedInsights] = useState<Record<number, boolean>>({});
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('level_display_mode') === 'dark');
-  const [submissionText, setSubmissionText] = useState('');
 
   const activeTheme = useMemo(() => {
      if (level.customColor && THEMES[level.customColor]) return THEMES[level.customColor];
      return DEFAULT_THEMES[(level.id - 1) % DEFAULT_THEMES.length];
   }, [level.customColor, level.id]);
-
-  const levelTask = useMemo(() => tasks.find(t => t.levelId === level.id), [tasks, level.id]);
 
   const carouselItems = useMemo(() => {
     if (!content) return [];
@@ -139,19 +136,12 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
     let score = 0;
     quizQuestions.forEach((q, idx) => { if (q.correctIndex === quizAnswers[idx]) score++; });
     if (score >= Math.ceil(quizQuestions.length * 0.6)) {
-       playPositiveSound();
-       setStep(Step.OFFICIAL_TASK); 
+       playCelebrationSound();
+       setStep(Step.COMPLETED);
     } else {
       playErrorSound();
       alert('نعتذر، لم تجتاز الاختبار بنسبة كافية. يرجى مراجعة المادة وإعادة المحاولة.');
     }
-  };
-
-  const handleTaskSubmission = () => {
-    if (!levelTask || !submissionText.trim()) return;
-    onSubmitTask(levelTask.id, submissionText);
-    playCelebrationSound();
-    setStep(Step.COMPLETED);
   };
 
   return (
@@ -251,12 +241,7 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
                        <div className="w-32 h-32 bg-blue-600/10 rounded-[3rem] flex items-center justify-center mx-auto text-7xl shadow-inner animate-float">📥</div>
                        <div className="space-y-4">
                           <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">اكتمل المسار المعرفي</h3>
-                          <p className="text-slate-500 text-xl font-medium max-w-xl mx-auto leading-relaxed">أنت الآن جاهز للتطبيق العملي. قمنا بتوفير أدوات Gemini المساعدة لمشروعك في هذا المستوى لمساعدتك في بناء المخرج النهائي.</p>
-                       </div>
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          {['دليل التنفيذ (PDF)', 'نماذج العمل التقنية', 'أدوات Gemini المساعدة', 'أمثلة لشركات ناجحة'].map(m => (
-                            <button key={m} className="p-8 bg-slate-50 dark:bg-white/5 rounded-[2rem] font-black text-sm hover:bg-blue-600 hover:text-white transition-all border border-transparent hover:scale-105 active:scale-95 shadow-sm">تحميل {m}</button>
-                          ))}
+                          <p className="text-slate-500 text-xl font-medium max-w-xl mx-auto leading-relaxed">أنت الآن جاهز لتقييم استيعابك للمفاهيم قبل الانتقال للتطبيق العملي في مشروعك الناشئ.</p>
                        </div>
                     </div>
                   )}
@@ -290,7 +275,7 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
            <div className="w-full max-w-2xl space-y-12 animate-fade-in-up">
               <div className="text-center space-y-3">
                  <h3 className="text-4xl font-black tracking-tight">تقييم استيعاب المحطة</h3>
-                 <p className="text-slate-500 font-medium">أجب بشكل صحيح للانتقال لمرحلة تسليم المخرج التنفيذي</p>
+                 <p className="text-slate-500 font-medium">أجب بشكل صحيح للانتقال للمرحلة التالية</p>
               </div>
               <div className="space-y-10">
                  {quizQuestions.map((q, qIdx) => (
@@ -324,54 +309,6 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
               >
                  تأكيد الإجابات والمتابعة
               </button>
-           </div>
-        )}
-
-        {step === Step.OFFICIAL_TASK && levelTask && (
-           <div className="w-full max-w-3xl space-y-12 animate-fade-in-up">
-              <div className={`p-14 md:p-20 rounded-[4rem] premium-shadow reader-card relative overflow-hidden ${isDarkMode ? 'bg-slate-900/60' : 'bg-white'}`}>
-                 <div className="flex justify-between items-start mb-12">
-                    <div>
-                       <span className={`inline-flex items-center gap-3 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-500/20 bg-blue-500/5 text-blue-600`}>
-                          المخرج التنفيذي المطلوب
-                       </span>
-                       <h3 className="text-5xl font-black mt-6 leading-tight tracking-tight">{levelTask.title}</h3>
-                    </div>
-                    <div className="w-24 h-24 bg-blue-600 rounded-[2.5rem] flex items-center justify-center text-5xl shadow-xl text-white transform -rotate-6">📝</div>
-                 </div>
-                 
-                 <div className="space-y-10">
-                    <div className="bg-slate-50 dark:bg-white/5 p-10 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-inner">
-                       <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">وصف المهمة التنفيذية:</h4>
-                       <p className="text-xl font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic opacity-90">{levelTask.description}</p>
-                    </div>
-
-                    <div className="space-y-6">
-                       <div className="flex justify-between items-center px-4">
-                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Submission Portal</label>
-                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-600/10 px-3 py-1 rounded-lg">نوع التسليم: {levelTask.deliverableType}</span>
-                       </div>
-                       <textarea 
-                          className={`w-full h-72 p-10 border rounded-[3rem] outline-none focus:ring-8 transition-all duration-500 font-medium text-xl resize-none shadow-inner 
-                            ${isDarkMode ? 'bg-slate-800 border-white/5 focus:ring-blue-500/10 focus:border-blue-500 text-white' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/5 focus:bg-white focus:border-blue-500'}`}
-                          placeholder="الصق رابط المستند أو قم بكتابة مخرجاتك النهائية هنا..."
-                          value={submissionText}
-                          onChange={e => setSubmissionText(e.target.value)}
-                       />
-                    </div>
-                 </div>
-
-                 <div className="mt-16 flex flex-col sm:flex-row gap-4">
-                    <button onClick={onBack} className="flex-1 py-6 glass text-slate-500 rounded-[2.2rem] font-black text-sm hover:text-slate-900 transition-all active:scale-95">إكمال التسليم لاحقاً</button>
-                    <button 
-                       onClick={handleTaskSubmission}
-                       disabled={!submissionText.trim()}
-                       className="flex-[2.5] py-6 bg-slate-900 text-white rounded-[2.2rem] font-black text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
-                    >
-                       اعتماد المخرج وإنهاء المحطة 🚀
-                    </button>
-                 </div>
-              </div>
            </div>
         )}
 

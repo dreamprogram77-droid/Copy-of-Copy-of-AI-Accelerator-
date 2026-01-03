@@ -141,7 +141,7 @@ export const Registration: React.FC<RegistrationProps> = ({ onRegister, onStaffL
       `}</style>
 
       {/* Side Content */}
-      <div className="hidden lg:flex lg:w-[40%] relative bg-slate-900 flex-col justify-between p-16 border-l border-white/5">
+      <div className="hidden lg:flex lg:w-[40%] relative bg-slate-900 flex-col justify-between p-16 border-l border-white/5 overflow-hidden">
         <div className="absolute inset-0 opacity-10">
            <svg width="100%" height="100%"><pattern id="grid-reg" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="white" strokeWidth="0.5"/></pattern><rect width="100%" height="100%" fill="url(#grid-reg)" /></svg>
         </div>

@@ -241,7 +241,7 @@ export const storageService = {
     
     localStorage.setItem(DB_KEYS.PROGRESS, JSON.stringify(progressList));
     if (data.status === 'COMPLETED') {
-      storageService.unlockTaskForLevel(uid, levelId);
+      storageService.unlockTaskForLevel(uid, levelId + 1);
     }
   },
 

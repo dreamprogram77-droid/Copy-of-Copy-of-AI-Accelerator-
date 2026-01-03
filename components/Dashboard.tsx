@@ -314,8 +314,358 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
         <div className="flex-1 overflow-y-auto p-10 relative">
            {activeNav === 'home' && (
              <div className="max-w-6xl mx-auto space-y-12 animate-fade-in-up pb-20">
+                {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                    <div className="p-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[3.5rem] text-white premium-shadow relative overflow-hidden group">
                       <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[80px] group-hover:scale-150 transition-transform duration-1000"></div>
                       <p className="text-[11px] font-black uppercase opacity-60 mb-2 tracking-[0.2em]">إنجاز المسار التدريبي</p>
-                      
+                      <h3 className="text-6xl font-black tracking-tighter">{Math.round(progress)}%</h3>
+                      <div className="mt-10 bg-white/20 h-2.5 rounded-full overflow-hidden shadow-inner">
+                        <div className="bg-white h-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
+                      </div>
+                   </div>
+                   <div className={`p-10 rounded-[3.5rem] card-neo flex flex-col justify-between`}>
+                      <div className="flex justify-between items-start">
+                        <p className={`text-[11px] font-black uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>الأوسمة المحققة</p>
+                        <span className="text-3xl">🛡️</span>
+                      </div>
+                      <h3 className={`text-6xl font-black mt-4 ${isDark ? 'text-white' : 'text-slate-800'}`}>{completedCount}</h3>
+                   </div>
+                   <div className={`p-10 rounded-[3.5rem] card-neo flex flex-col justify-between`}>
+                      <div className="flex justify-between items-start">
+                        <p className={`text-[11px] font-black uppercase tracking-widest ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>المهام المكتملة</p>
+                        <span className="text-3xl">📝</span>
+                      </div>
+                      <h3 className={`text-6xl font-black mt-4 ${isDark ? 'text-white' : 'text-slate-800'}`}>{userTasks.filter(t => t.status === 'SUBMITTED' || t.status === 'APPROVED').length}</h3>
+                   </div>
+                </div>
+
+                {/* Level Progress Map */}
+                <div className="space-y-6">
+                   <div className="flex items-center gap-4 px-2">
+                      <div className="w-1.5 h-8 bg-blue-600 rounded-full shadow-[0_0_12px_rgba(37,99,235,0.6)]"></div>
+                      <h3 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>خريطة نضج المشروع</h3>
+                   </div>
+                   <div className={`p-14 md:p-20 rounded-[4rem] card-neo relative overflow-hidden`}>
+                      <div className="timeline-bar px-8 relative z-10">
+                         <div className="timeline-fill" style={{ width: `${Math.max(0, (completedCount - 0.5) / (levels.length - 0.5)) * 100}%` }}></div>
+                         <div className="flex justify-between items-center relative z-10">
+                            {levels.map((level, idx) => {
+                              const colorSet = getLevelColorSet(level.customColor);
+                              return (
+                                <div key={level.id} className="flex flex-col items-center gap-6 group">
+                                   <div 
+                                      className={`w-14 h-14 rounded-full flex items-center justify-center text-sm border-4 transition-all duration-700 premium-shadow
+                                        ${level.isCompleted 
+                                          ? `${colorSet.bg} border-white text-white scale-110` 
+                                          : level.isLocked ? `${isDark ? 'bg-slate-800 border-slate-900 text-slate-600' : 'bg-slate-100 border-white text-slate-300'}` : `bg-white ${colorSet.border} ${colorSet.text} animate-pulse scale-125 ring-8 ${isDark ? 'ring-blue-500/10' : 'ring-blue-100'}`
+                                        }
+                                      `}
+                                   >
+                                      {level.isCompleted ? '✓' : idx + 1}
+                                   </div>
+                                   <p className={`text-[10px] font-black uppercase tracking-tight text-center max-w-[80px] ${level.isLocked ? 'text-slate-600' : (isDark ? 'text-white' : 'text-slate-900')}`}>
+                                      {level.title.split(' ')[0]}
+                                   </p>
+                                </div>
+                              );
+                            })}
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Vertical Level List */}
+                <div className="space-y-8">
+                   <div className="flex justify-between items-center px-4">
+                      <h3 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>تفاصيل محطات التسريع</h3>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{completedCount} من {levels.length} مكتمل</span>
+                   </div>
+                   
+                   <div className={`rounded-[3.5rem] card-neo overflow-hidden`}>
+                      <div className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-100'}`}>
+                        {levels.map((level) => {
+                          const colorSet = getLevelColorSet(level.customColor);
+                          const canCustomize = level.id <= 6;
+                          
+                          return (
+                            <div 
+                              key={level.id} 
+                              onClick={() => !level.isLocked && !isCustomizeMode && onSelectLevel(level.id)} 
+                              className={`p-8 flex items-center justify-between transition-all duration-300 ${level.isLocked ? 'opacity-40 grayscale cursor-not-allowed' : (isCustomizeMode ? 'cursor-default' : 'cursor-pointer hover:bg-blue-600/[0.03]')} group`}
+                            >
+                               <div className="flex items-center gap-8 flex-1 min-w-0">
+                                  <div className={`w-16 h-16 rounded-[1.8rem] flex items-center justify-center text-4xl shrink-0 transition-all premium-shadow ${level.isCompleted ? (colorSet.bg) + ' text-white' : (level.isLocked ? (isDark ? 'bg-slate-800 text-slate-600' : 'bg-slate-100 text-slate-300') : colorSet.light + ' ' + colorSet.text)} group-hover:scale-110 group-hover:rotate-3`}>
+                                     {level.isCompleted ? '✓' : level.icon}
+                                  </div>
+                                  <div className="truncate">
+                                    <div className="flex items-center gap-3">
+                                      <span className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>LEVEL 0{level.id}</span>
+                                      <h4 className={`font-black text-xl transition-colors ${!level.isLocked ? 'group-hover:' + colorSet.text : ''}`}>
+                                        {level.title}
+                                      </h4>
+                                    </div>
+                                    <p className="text-sm text-slate-500 font-medium truncate mt-1.5 opacity-80">{level.description}</p>
+                                  </div>
+                               </div>
+                               
+                               <div className="flex items-center gap-6 shrink-0 px-6">
+                                  {(isCustomizeMode && canCustomize) ? (
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); setEditingLevel(level); setCustomIcon(level.icon); setCustomColorName(level.customColor || 'أزرق'); playPositiveSound(); }}
+                                      className="px-6 py-3 rounded-2xl bg-amber-500 text-white font-black text-[11px] uppercase shadow-xl shadow-amber-500/20 active:scale-90 transition-all hover:bg-amber-600"
+                                    >
+                                      تعديل المظهر
+                                    </button>
+                                  ) : (
+                                    <>
+                                       {level.isLocked ? (
+                                          <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border ${isDark ? 'bg-slate-900 border-white/5 text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
+                                             <span className="text-xs">🔒</span>
+                                             <span className="text-[10px] font-black uppercase tracking-widest">مغلق حالياً</span>
+                                          </div>
+                                       ) : (
+                                          <div className={`flex items-center gap-3 px-8 py-3.5 rounded-2xl border transition-all duration-300 ${level.isCompleted ? 'bg-emerald-500 text-white border-emerald-500 shadow-xl shadow-emerald-500/20' : 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-1'}`}>
+                                             <span className="text-[10px] font-black uppercase tracking-widest">{level.isCompleted ? 'مكتمل بنجاح' : 'دخول المحطة'}</span>
+                                             <span className="text-xl leading-none">{level.isCompleted ? '✓' : '→'}</span>
+                                          </div>
+                                       )}
+                                    </>
+                                  )}
+                               </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                   </div>
+                </div>
+             </div>
+           )}
+
+           {activeNav === 'tasks' && (
+             <div className="max-w-5xl mx-auto space-y-10 animate-fade-in-up pb-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   {userTasks.map(task => (
+                     <div key={task.id} className="p-10 rounded-[3.5rem] card-neo">
+                        <div className="flex justify-between items-center mb-8">
+                           <span className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Milestone 0{task.levelId}</span>
+                           <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase border ${task.status === 'ASSIGNED' ? 'bg-blue-50 text-blue-600 border-blue-100' : task.status === 'SUBMITTED' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>{task.status}</span>
+                        </div>
+                        <h4 className="text-2xl font-black mb-4 leading-tight">{task.title}</h4>
+                        <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium">{task.description}</p>
+                        {task.status === 'ASSIGNED' && (
+                           <button 
+                              onClick={() => setSelectedTask(task)} 
+                              className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-sm hover:brightness-110 transition-all shadow-xl shadow-blue-600/20 active:scale-95"
+                           >
+                              تسليم المخرج النهائي
+                           </button>
+                        )}
+                        {task.status === 'SUBMITTED' && (
+                           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">تم الاستلام والمراجعة جارية</p>
+                           </div>
+                        )}
+                     </div>
+                   ))}
+                </div>
+             </div>
+           )}
+
+           {activeNav === 'opportunity_lab' && (
+             <div className="max-w-6xl mx-auto space-y-14 animate-fade-in-up pb-20">
+                <div className="text-center space-y-6">
+                   <div className="inline-flex items-center gap-3 bg-blue-50 text-blue-600 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.3em] border border-blue-100 mx-auto">
+                      AI Deep Analysis Engine
+                   </div>
+                   <h3 className="text-5xl font-black tracking-tight text-slate-900 dark:text-white">مختبر الفرص والنمو</h3>
+                   <p className="text-slate-500 max-w-2xl mx-auto font-medium text-lg">استخدم وكلاء Gemini المتطورين لاكتشاف أسواق جديدة غير مخدومة لمشروعك.</p>
+                </div>
+                {!oppResult && (
+                  <div className="flex flex-col items-center py-24 space-y-10">
+                     <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-[2.5rem] flex items-center justify-center text-5xl animate-bounce">🧭</div>
+                     <button onClick={handleRunOppAnalysis} disabled={isAnalyzingOpp} className="px-16 py-6 bg-slate-900 text-white rounded-[2.2rem] font-black text-xl shadow-2xl hover:bg-blue-600 transition-all active:scale-95 flex items-center gap-5">
+                        {isAnalyzingOpp ? (
+                          <>
+                            <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span>جاري المسح الاستراتيجي...</span>
+                          </>
+                        ) : 'تفعيل محرك المسح الاستراتيجي'}
+                     </button>
+                  </div>
+                )}
+                {oppResult && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-fade-in-up">
+                    <div className="lg:col-span-2 space-y-8">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {oppResult.newMarkets.map((m, i) => (
+                            <div key={i} className={`p-10 rounded-[3.5rem] card-neo relative overflow-hidden`}>
+                               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-bl-[4rem]"></div>
+                               <h5 className="text-2xl font-black text-blue-600 mb-6">{m.region}</h5>
+                               <p className="text-base text-slate-600 dark:text-slate-400 font-medium leading-relaxed">{m.reasoning}</p>
+                               <div className="mt-8 flex items-center gap-4">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">ROI Potential:</span>
+                                  <span className="text-sm font-black text-emerald-500">{m.potentialROI}</span>
+                               </div>
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                    <div className="space-y-8">
+                       <div className="p-12 bg-gradient-to-br from-indigo-600 to-blue-800 text-white rounded-[4rem] premium-shadow relative overflow-hidden group">
+                          <div className="absolute top-[-20px] left-[-20px] text-9xl opacity-10 group-hover:rotate-12 transition-transform duration-700">💭</div>
+                          <h4 className="text-xl font-black mb-8 relative z-10 flex items-center gap-4">
+                             <span className="w-1.5 h-6 bg-white/40 rounded-full"></span>
+                             استراتيجية المحيط الأزرق
+                          </h4>
+                          <p className="italic font-medium text-xl leading-relaxed opacity-95 relative z-10">"{oppResult.blueOceanIdea}"</p>
+                       </div>
+                    </div>
+                  </div>
+                )}
+             </div>
+           )}
+
+           {activeNav === 'services' && (
+             <div className="max-w-6xl mx-auto space-y-14 animate-fade-in pb-20">
+                <div className="text-center space-y-4">
+                   <h3 className="text-5xl font-black tracking-tight">خدمات التنفيذ المتميزة</h3>
+                   <p className="text-slate-500 text-lg font-medium">فريق متخصص لنمذجة مخرجاتك الريادية بجودة استثمارية عالمية.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                   {SERVICES_CATALOG.map(svc => (
+                     <div key={svc.id} className={`p-12 rounded-[3.5rem] card-neo flex flex-col justify-between`}>
+                        <div>
+                          <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-[2rem] flex items-center justify-center text-5xl mb-8 shadow-inner">{svc.icon}</div>
+                          <h4 className="text-2xl font-black mb-4 leading-tight">{svc.title}</h4>
+                          <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium line-clamp-3">{svc.description}</p>
+                        </div>
+                        <button onClick={() => setSelectedService(svc)} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-blue-600 transition-all active:scale-95 shadow-lg">اكتشف الباقات المتاحة</button>
+                     </div>
+                   ))}
+                </div>
+             </div>
+           )}
+
+           {activeNav === 'startup_profile' && (
+             <div className="max-w-4xl mx-auto space-y-12 animate-fade-in-up pb-20">
+                <div className={`p-14 rounded-[4rem] card-neo space-y-12`}>
+                   <div className="flex flex-col md:flex-row gap-16 items-center">
+                      <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                         <div className="w-48 h-48 rounded-[3.5rem] border-4 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-slate-900/50 overflow-hidden premium-shadow group-hover:border-blue-500 transition-colors">
+                           {userProfile.logo ? <img src={userProfile.logo} className="w-full h-full object-cover" alt="logo" /> : <span className="text-6xl opacity-30">📁</span>}
+                         </div>
+                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 rounded-[3.5rem] transition-opacity font-black text-xs uppercase tracking-widest">تغيير الشعار</div>
+                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                      </div>
+                      <div className="flex-1 space-y-8 w-full">
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">اسم المشروع</label>
+                               <input className={`w-full p-5 rounded-2xl border outline-none font-bold ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'} focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all`} value={userProfile.startupName} onChange={e => setUserProfile({...userProfile, startupName: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">القطاع</label>
+                               <select className={`w-full p-5 rounded-2xl border outline-none font-bold ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'} focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all`} value={userProfile.industry} onChange={e => setUserProfile({...userProfile, industry: e.target.value})}>
+                                  {SECTORS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                               </select>
+                            </div>
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">الوصف الاستراتيجي للمشروع</label>
+                            <textarea className={`w-full h-40 p-6 rounded-2xl border outline-none font-medium text-base resize-none ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'} focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all leading-relaxed`} value={userProfile.startupDescription} onChange={e => setUserProfile({...userProfile, startupDescription: e.target.value})} />
+                         </div>
+                         <button onClick={handleSaveProfile} disabled={isSaving} className="w-full py-6 bg-blue-600 text-white rounded-[1.8rem] font-black text-lg shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform active:scale-95">
+                            {isSaving ? (
+                              <div className="flex items-center justify-center gap-4">
+                                <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                <span>جاري الحفظ...</span>
+                              </div>
+                            ) : 'حفظ التعديلات الاستراتيجية'}
+                         </button>
+                      </div>
+                   </div>
+                </div>
+             </div>
+           )}
+        </div>
+
+        {/* Level Editing Modal */}
+        {editingLevel && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-fade-in" dir="rtl">
+            <div className={`max-w-xl w-full p-14 rounded-[4rem] border shadow-3xl ${isDark ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-100 text-slate-900'}`}>
+              <div className="flex justify-between items-start mb-10">
+                <div>
+                   <h3 className="text-3xl font-black tracking-tight">تخصيص: المستوى {editingLevel.id}</h3>
+                   <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1">Appearance Configuration</p>
+                </div>
+                <button onClick={() => setEditingLevel(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">✕</button>
+              </div>
+
+              <div className="flex flex-col items-center gap-12">
+                <div className={`w-36 h-36 rounded-[3rem] flex items-center justify-center text-7xl shadow-2xl transition-all duration-700 ${getLevelColorSet(customColorName).bg} text-white premium-shadow`}>
+                  {customIcon || editingLevel.icon}
+                </div>
+                <div className="w-full space-y-8">
+                  <div className="relative group">
+                    <input 
+                      className={`w-full p-6 text-5xl text-center rounded-[2.5rem] border-2 outline-none font-serif ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'} focus:border-blue-500 transition-all`} 
+                      value={customIcon} 
+                      onChange={e => setCustomIcon(e.target.value.substring(0,4))} 
+                      placeholder="Icon" 
+                    />
+                    <button 
+                      onClick={handleAISuggestForSingleLevel}
+                      disabled={isAISuggesting}
+                      title="اقتراح أيقونة بالذكاء الاصطناعي"
+                      className="absolute left-5 top-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all disabled:opacity-50"
+                    >
+                      {isAISuggesting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : '✨'}
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">اختيار هوية اللون</p>
+                     <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
+                       {PRESET_COLORS.map(color => (
+                         <button key={color.name} onClick={() => { setCustomColorName(color.name); playPositiveSound(); }} className={`w-10 h-10 rounded-2xl ${color.bg} border-4 transition-all ${customColorName === color.name ? 'border-white ring-4 ' + color.ring + ' scale-110' : 'border-transparent opacity-40 hover:opacity-100'}`} />
+                       ))}
+                     </div>
+                  </div>
+                </div>
+                <div className="flex gap-4 w-full pt-6">
+                  <button onClick={() => setEditingLevel(null)} className="flex-1 py-5 rounded-3xl font-black text-slate-400 hover:text-slate-600 transition-colors">إلغاء</button>
+                  <button onClick={handleSaveCustomization} className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black shadow-xl shadow-blue-500/20 active:scale-95 transition-all hover:bg-blue-700">حفظ التفضيلات</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Task Submission Modal */}
+        {selectedTask && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in" dir="rtl">
+            <div className={`max-w-2xl w-full p-12 rounded-[4rem] ${isDark ? 'bg-slate-900 border border-white/5 text-white' : 'bg-white shadow-2xl text-slate-900'} animate-fade-in-up`}>
+              <div className="flex justify-between items-start mb-10">
+                 <div>
+                    <h3 className="text-3xl font-black tracking-tight">تسليم: {selectedTask.title}</h3>
+                    <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest mt-1">Deliverable Submission Portal</p>
+                 </div>
+                 <button onClick={() => setSelectedTask(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">✕</button>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 mb-8">
+                <p className="text-slate-500 text-sm leading-relaxed font-medium">{selectedTask.description}</p>
+              </div>
+              <textarea className={`w-full h-64 p-8 rounded-[2.5rem] border outline-none focus:ring-4 transition-all duration-300 font-medium text-lg resize-none shadow-inner mb-10 ${isDark ? 'bg-slate-800 border-slate-700 focus:ring-blue-500/10 focus:border-blue-500' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/5 focus:border-blue-500 focus:bg-white'}`} placeholder="الصق رابط المخرج أو اكتب التفاصيل هنا..." value={submissionText} onChange={e => setSubmissionText(e.target.value)} />
+              <div className="flex gap-4">
+                <button onClick={() => setSelectedTask(null)} className="flex-1 py-5 font-black text-slate-400 hover:text-slate-600 transition-colors">إغلاق</button>
+                <button onClick={handleTaskSubmit} disabled={!submissionText.trim()} className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/30 disabled:opacity-30 active:scale-95 transition-all hover:bg-blue-700">تأكيد التسليم الرسمي 🚀</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRatingModal && <ProgramEvaluation onClose={() => setShowRatingModal(false)} onSubmit={handleRatingSubmit} />}
+      </main>
+    </div>
+  );
+};
