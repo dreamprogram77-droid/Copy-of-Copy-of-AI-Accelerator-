@@ -3,6 +3,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { LevelData, UserProfile, DIGITAL_SHIELDS, SECTORS, TaskRecord, SERVICES_CATALOG, ServiceItem, ServicePackage, ServiceRequest, OpportunityAnalysis, ProgramRating } from '../types';
 import { storageService } from '../services/storageService';
 import { discoverOpportunities, suggestIconsForLevels } from '../services/geminiService';
+import { Language, getTranslation } from '../services/i18nService';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { playPositiveSound, playCelebrationSound } from '../services/audioService';
 import { ProgramEvaluation } from './ProgramEvaluation';
 
@@ -15,16 +17,9 @@ interface DashboardProps {
   onOpenProAnalytics?: () => void;
   onUpdateLevelUI?: (id: number, icon: string, color: string) => void;
   onAISuggestIcons?: () => Promise<void>;
+  lang: Language;
+  onLanguageChange: (lang: Language) => void;
 }
-
-const NAV_ITEMS = [
-  { id: 'home', label: 'الرئيسية', icon: '🏠' },
-  { id: 'bootcamp', label: 'المنهج التدريبي', icon: '📚' },
-  { id: 'tasks', label: 'المهام والتسليمات', icon: '📝' },
-  { id: 'opportunity_lab', label: 'مختبر الفرص', icon: '🧭' },
-  { id: 'services', label: 'خدمات التنفيذ', icon: '🛠️' }, 
-  { id: 'startup_profile', label: 'الملف الشخصي', icon: '📈' },
-];
 
 const PRESET_COLORS = [
   { name: 'أزرق', bg: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-600', light: 'bg-blue-50', ring: 'ring-blue-500' },
@@ -37,19 +32,39 @@ const PRESET_COLORS = [
   { name: 'سحابي', bg: 'bg-slate-500', text: 'text-slate-500', border: 'border-slate-500', light: 'bg-slate-50', ring: 'ring-slate-500' },
 ];
 
-export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels, onSelectLevel, onShowCertificate, onLogout, onOpenProAnalytics, onUpdateLevelUI, onAISuggestIcons }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  user: initialUser, levels, onSelectLevel, onShowCertificate, onLogout, 
+  onOpenProAnalytics, onUpdateLevelUI, onAISuggestIcons,
+  lang, onLanguageChange
+}) => {
   const [activeNav, setActiveNav] = useState('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => (localStorage.getItem('dashboard_theme_mode') as any) || 'light');
   const [isCustomizeMode, setIsCustomizeMode] = useState(false);
   const [isAISuggesting, setIsAISuggesting] = useState(false);
   
+  const t = getTranslation(lang);
+  
+  const NAV_ITEMS = [
+    { id: 'home', label: t.dashboard.home, icon: '🏠' },
+    { id: 'bootcamp', label: t.dashboard.bootcamp, icon: '📚' },
+    { id: 'tasks', label: t.dashboard.tasks, icon: '📝' },
+    { id: 'opportunity_lab', label: t.dashboard.lab, icon: '🧭' },
+    { id: 'services', label: t.dashboard.services, icon: '🛠️' }, 
+    { id: 'startup_profile', label: t.dashboard.profile, icon: '📈' },
+  ];
+
   const [userProfile, setUserProfile] = useState<UserProfile>(initialUser);
   const [userTasks, setUserTasks] = useState<TaskRecord[]>([]);
   const [userRequests, setUserRequests] = useState<ServiceRequest[]>([]);
   const [selectedTask, setSelectedTask] = useState<TaskRecord | null>(null);
-  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
   const [submissionFile, setSubmissionFile] = useState<{data: string, name: string} | null>(null);
+  
+  // Fix: Added missing selectedService and related states for service package handling
+  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [serviceDetails, setServiceDetails] = useState('');
+
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzingOpp, setIsAnalyzingOpp] = useState(false);
   const [oppResult, setOppResult] = useState<OpportunityAnalysis | null>(null);
@@ -99,14 +114,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
           logo: localStorage.getItem(`logo_${session.uid}`) || undefined
         }));
       }
-
       const existingRating = storageService.getProgramRating(session.uid);
       if (existingRating) setHasRated(true);
-      if (progress === 100 && !existingRating) {
-        setTimeout(() => setShowRatingModal(true), 3000);
-      }
     }
-  }, [activeNav, progress]);
+  }, [activeNav, levels]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -128,42 +139,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
     if (file && file.type === 'application/pdf') {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSubmissionFile({
-          data: reader.result as string,
-          name: file.name
-        });
+        setSubmissionFile({ data: reader.result as string, name: file.name });
         playPositiveSound();
       };
       reader.readAsDataURL(file);
-    } else if (file) {
-      alert('يرجى رفع ملف بصيغة PDF فقط.');
     }
-  };
-
-  const handleSaveProfile = () => {
-    setIsSaving(true);
-    const session = storageService.getCurrentSession();
-    if (session) {
-      const startups = storageService.getAllStartups();
-      const sIndex = startups.findIndex(s => s.projectId === session.projectId);
-      if (sIndex > -1) {
-        startups[sIndex].name = userProfile.startupName;
-        startups[sIndex].description = userProfile.startupDescription;
-        startups[sIndex].industry = userProfile.industry;
-        localStorage.setItem('db_startups', JSON.stringify(startups));
-      }
-      storageService.updateUser(session.uid, {
-        firstName: userProfile.firstName,
-        lastName: userProfile.lastName,
-        email: userProfile.email,
-        phone: userProfile.phone
-      });
-    }
-    setTimeout(() => {
-      setIsSaving(false);
-      playCelebrationSound();
-      alert('تم حفظ كافة التغييرات بنجاح.');
-    }, 800);
   };
 
   const handleTaskSubmit = () => {
@@ -179,88 +159,71 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
     playCelebrationSound();
   };
 
-  const handleRatingSubmit = (rating: ProgramRating) => {
+  // Fix: Added handleServiceRequestSubmit to process requests for professional services
+  const handleServiceRequestSubmit = () => {
+    if (!selectedService || !selectedPackageId) return;
     const session = storageService.getCurrentSession();
     if (session) {
-      storageService.saveProgramRating(session.uid, rating);
-      setHasRated(true);
-      setShowRatingModal(false);
+      storageService.requestService(session.uid, selectedService.id, selectedPackageId, serviceDetails);
+      const requests = storageService.getUserServiceRequests(session.uid);
+      setUserRequests(requests);
+      setSelectedService(null);
+      setSelectedPackageId(null);
+      setServiceDetails('');
+      playCelebrationSound();
+      alert('تم إرسال طلب الخدمة بنجاح! سيتواصل معك الفريق المختص قريباً.');
     }
   };
 
   const handleRunOppAnalysis = async () => {
     setIsAnalyzingOpp(true);
-    playPositiveSound();
     try {
       const result = await discoverOpportunities(userProfile.startupName, userProfile.startupDescription, userProfile.industry);
       setOppResult(result);
       playCelebrationSound();
-    } catch (e) {
-      alert("فشل التحليل الاستراتيجي.");
-    } finally {
-      setIsAnalyzingOpp(false);
-    }
+    } catch (e) { alert("Failed."); } finally { setIsAnalyzingOpp(false); }
   };
 
   const handleAISuggest = async () => {
     if (!onAISuggestIcons) return;
     setIsAISuggesting(true);
-    playPositiveSound();
     try {
       await onAISuggestIcons();
       playCelebrationSound();
-      alert('تم تحديث الأيقونات بناءً على توصيات الذكاء الاصطناعي.');
-    } catch (e) {
-      alert('فشل في جلب التوصيات.');
-    } finally {
-      setIsAISuggesting(false);
-    }
-  };
-
-  const handleAISuggestForSingleLevel = async () => {
-    if (!editingLevel) return;
-    setIsAISuggesting(true);
-    try {
-      const iconMap = await suggestIconsForLevels([editingLevel]);
-      if (iconMap[editingLevel.id]) {
-        setCustomIcon(iconMap[editingLevel.id]);
-        playPositiveSound();
-      }
-    } catch (e) {
-      alert('عذراً، فشل الاقتراح التلقائي.');
-    } finally {
-      setIsAISuggesting(false);
-    }
-  };
-
-  const handleSaveCustomization = () => {
-    if (editingLevel && onUpdateLevelUI) {
-      const selectedColorObj = PRESET_COLORS.find(c => c.name === customColorName) || PRESET_COLORS[0];
-      onUpdateLevelUI(editingLevel.id, customIcon, selectedColorObj.name);
-      setEditingLevel(null);
-      playCelebrationSound();
-    }
+    } catch (e) { alert('Failed.'); } finally { setIsAISuggesting(false); }
   };
 
   const getLevelColorSet = (colorName?: string) => {
     return PRESET_COLORS.find(c => c.name === colorName) || PRESET_COLORS[0];
   };
 
+  const getTaskForLevel = (levelId: number) => {
+    return userTasks.find(t => t.levelId === levelId);
+  };
+
+  const getStatusBadge = (task?: TaskRecord) => {
+    if (!task) return null;
+    switch (task.status) {
+      case 'SUBMITTED': return <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-md border border-amber-200">قيد المراجعة</span>;
+      case 'APPROVED': return <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-md border border-emerald-200">مكتمل ✓</span>;
+      case 'ASSIGNED': return <span className="text-[9px] font-black bg-blue-100 text-blue-600 px-2 py-0.5 rounded-md border border-blue-200">بانتظار التسليم</span>;
+      default: return null;
+    }
+  };
+
   return (
-    <div className={`min-h-screen flex ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} font-sans transition-colors duration-500`} dir="rtl">
+    <div className={`min-h-screen flex ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} font-sans transition-colors duration-500`} dir={t.dir}>
       <style>{`
         .sidebar-neo { backdrop-filter: blur(40px); background: ${isDark ? 'rgba(15, 23, 42, 0.4)' : 'rgba(255, 255, 255, 0.7)'}; border-left: 1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
         .dashboard-header { backdrop-filter: blur(20px); background: ${isDark ? 'rgba(2, 6, 23, 0.6)' : 'rgba(248, 250, 252, 0.6)'}; border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
-        .active-nav { background: #2563eb; color: white; box-shadow: 0 12px 30px -10px rgba(37, 99, 235, 0.5); transform: translateX(-6px); }
+        .active-nav { background: #2563eb; color: white; box-shadow: 0 12px 30px -10px rgba(37, 99, 235, 0.5); transform: ${t.dir === 'rtl' ? 'translateX(-6px)' : 'translateX(6px)'}; }
         .card-neo { transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1); border: 1px solid ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'}; background: ${isDark ? 'rgba(30, 41, 59, 0.25)' : 'rgba(255,255,255,0.9)'}; }
         .card-neo:hover { transform: translateY(-8px) scale(1.01); box-shadow: 0 30px 60px -15px rgba(0,0,0,0.1); border-color: rgba(59, 130, 246, 0.4); }
-        .timeline-bar { position: relative; }
-        .timeline-bar::after { content: ''; position: absolute; top: 22px; left: 0; right: 0; height: 4px; background: ${isDark ? 'rgba(255,255,255,0.05)' : '#f1f5f9'}; z-index: 0; border-radius: 10px; }
         .timeline-fill { position: absolute; top: 22px; right: 0; height: 4px; background: linear-gradient(to left, #2563eb, #60a5fa); z-index: 1; transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1); border-radius: 10px; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
       `}</style>
 
       {/* Floating Modern Sidebar */}
-      <aside className={`fixed inset-y-0 right-0 z-50 w-72 lg:static transition-transform duration-700 ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'} sidebar-neo flex flex-col m-4 rounded-[3rem] shadow-premium`}>
+      <aside className={`fixed inset-y-0 ${t.dir === 'rtl' ? 'right-0' : 'left-0'} z-50 w-72 lg:static transition-transform duration-700 ${isMobileMenuOpen ? 'translate-x-0' : (t.dir === 'rtl' ? 'translate-x-full lg:translate-x-0' : '-translate-x-full lg:translate-x-0')} sidebar-neo flex flex-col m-4 rounded-[3rem] shadow-premium`}>
         <div className="p-10 text-center space-y-6">
           <div className="relative inline-block group">
             <div className="absolute inset-0 bg-blue-600 rounded-[2.5rem] blur-[30px] opacity-10 group-hover:opacity-40 transition-opacity"></div>
@@ -294,10 +257,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
         </nav>
 
         <div className="p-6 space-y-4">
+          <div className="px-4 mb-4">
+             <LanguageSwitcher currentLang={lang} onLanguageChange={onLanguageChange} variant="minimal" />
+          </div>
           <button onClick={() => { const n = isDark ? 'light' : 'dark'; setThemeMode(n); localStorage.setItem('dashboard_theme_mode', n); }} className={`w-full p-4 rounded-2xl border transition-all duration-300 ${isDark ? 'border-slate-800 bg-slate-900/50 text-slate-400 hover:text-amber-400' : 'border-slate-200 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-500'} text-[10px] font-black uppercase tracking-widest`}>
              {isDark ? '☀️ Switch Theme' : '🌙 Switch Theme'}
           </button>
-          <button onClick={onLogout} className="w-full p-4 text-rose-500 font-black text-[10px] uppercase tracking-widest hover:bg-rose-500/5 rounded-2xl transition-colors">تسجيل الخروج</button>
+          <button onClick={onLogout} className="w-full p-4 text-rose-500 font-black text-[10px] uppercase tracking-widest hover:bg-rose-500/5 rounded-2xl transition-colors">{t.dashboard.logout}</button>
         </div>
       </aside>
 
@@ -314,21 +280,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
               </div>
            </div>
            <div className="flex items-center gap-4">
-              <button 
-                onClick={handleAISuggest}
-                disabled={isAISuggesting}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-600/30 active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50"
-              >
+              <button onClick={handleAISuggest} disabled={isAISuggesting} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50">
                 {isAISuggesting ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : '✨'}
                 <span>تحديث الأيقونات (AI)</span>
               </button>
-              <button 
-                onClick={() => { setIsCustomizeMode(!isCustomizeMode); playPositiveSound(); }}
-                className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${isCustomizeMode ? 'bg-amber-100 border-amber-400 text-amber-700' : `${isDark ? 'bg-slate-900 border-slate-800 text-slate-400 hover:border-blue-500 hover:text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600'}`}`}
-              >
-                {isCustomizeMode ? '✨ جاري التخصيص...' : '🎨 تخصيص المسار'}
-              </button>
-              <button onClick={onOpenProAnalytics} className="bg-blue-600 text-white px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/30 active:scale-95 transition-all hover:bg-blue-700">تحليلات PRO</button>
+              <button onClick={onOpenProAnalytics} className="bg-blue-600 text-white px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all hover:bg-blue-700">تحليلات PRO</button>
            </div>
         </header>
 
@@ -361,59 +317,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                    </div>
                 </div>
 
-                {/* Level Progress Map */}
-                <div className="space-y-6">
-                   <div className="flex items-center gap-4 px-2">
-                      <div className="w-1.5 h-8 bg-blue-600 rounded-full shadow-[0_0_12px_rgba(37,99,235,0.6)]"></div>
-                      <h3 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>خريطة نضج المشروع</h3>
-                   </div>
-                   <div className={`p-14 md:p-20 rounded-[4rem] card-neo relative overflow-hidden`}>
-                      <div className="timeline-bar px-8 relative z-10">
-                         <div className="timeline-fill" style={{ width: `${Math.max(0, (completedCount - 0.5) / (levels.length - 0.5)) * 100}%` }}></div>
-                         <div className="flex justify-between items-center relative z-10">
-                            {levels.map((level, idx) => {
-                              const colorSet = getLevelColorSet(level.customColor);
-                              return (
-                                <div key={level.id} className="flex flex-col items-center gap-6 group">
-                                   <div 
-                                      className={`w-14 h-14 rounded-full flex items-center justify-center text-sm border-4 transition-all duration-700 premium-shadow
-                                        ${level.isCompleted 
-                                          ? `${colorSet.bg} border-white text-white scale-110` 
-                                          : level.isLocked ? `${isDark ? 'bg-slate-800 border-slate-900 text-slate-600' : 'bg-slate-100 border-white text-slate-300'}` : `bg-white ${colorSet.border} ${colorSet.text} animate-pulse scale-125 ring-8 ${isDark ? 'ring-blue-500/10' : 'ring-blue-100'}`
-                                        }
-                                      `}
-                                   >
-                                      {level.isCompleted ? '✓' : idx + 1}
-                                   </div>
-                                   <p className={`text-[10px] font-black uppercase tracking-tight text-center max-w-[80px] ${level.isLocked ? 'text-slate-600' : (isDark ? 'text-white' : 'text-slate-900')}`}>
-                                      {level.title.split(' ')[0]}
-                                   </p>
-                                </div>
-                              );
-                            })}
-                         </div>
-                      </div>
-                   </div>
-                </div>
-
-                {/* Vertical Level List */}
+                {/* Vertical Level List with linked tasks */}
                 <div className="space-y-8">
                    <div className="flex justify-between items-center px-4">
-                      <h3 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>تفاصيل محطات التسريع</h3>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{completedCount} من {levels.length} مكتمل</span>
+                      <h3 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>تفاصيل محطات التسريع والمخرجات</h3>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{completedCount} من {levels.length} محطات مكتملة</span>
                    </div>
                    
                    <div className={`rounded-[3.5rem] card-neo overflow-hidden`}>
                       <div className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-100'}`}>
                         {levels.map((level) => {
                           const colorSet = getLevelColorSet(level.customColor);
-                          const canCustomize = level.id <= 6;
+                          const levelTask = getTaskForLevel(level.id);
                           
                           return (
                             <div 
                               key={level.id} 
-                              onClick={() => !level.isLocked && !isCustomizeMode && onSelectLevel(level.id)} 
-                              className={`p-8 flex items-center justify-between transition-all duration-300 ${level.isLocked ? 'opacity-40 grayscale cursor-not-allowed' : (isCustomizeMode ? 'cursor-default' : 'cursor-pointer hover:bg-blue-600/[0.03]')} group`}
+                              onClick={() => !level.isLocked && onSelectLevel(level.id)} 
+                              className={`p-8 flex items-center justify-between transition-all duration-300 ${level.isLocked ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer hover:bg-blue-600/[0.03]'} group`}
                             >
                                <div className="flex items-center gap-8 flex-1 min-w-0">
                                   <div className={`w-16 h-16 rounded-[1.8rem] flex items-center justify-center text-4xl shrink-0 transition-all premium-shadow ${level.isCompleted ? (colorSet.bg) + ' text-white' : (level.isLocked ? (isDark ? 'bg-slate-800 text-slate-600' : 'bg-slate-100 text-slate-300') : colorSet.light + ' ' + colorSet.text)} group-hover:scale-110 group-hover:rotate-3`}>
@@ -425,33 +346,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                                       <h4 className={`font-black text-xl transition-colors ${!level.isLocked ? 'group-hover:' + colorSet.text : ''}`}>
                                         {level.title}
                                       </h4>
+                                      {getStatusBadge(levelTask)}
                                     </div>
-                                    <p className="text-sm text-slate-500 font-medium truncate mt-1.5 opacity-80">{level.description}</p>
+                                    <p className="text-sm text-slate-500 font-medium truncate mt-1 opacity-80">{level.description}</p>
+                                    {levelTask && !level.isLocked && (
+                                      <div className="flex items-center gap-2 mt-2">
+                                        <span className="text-[10px] font-bold text-blue-500">المخرج المطلوب:</span>
+                                        <span className="text-[10px] text-slate-400">{levelTask.title} (PDF)</span>
+                                      </div>
+                                    )}
                                   </div>
                                </div>
                                
                                <div className="flex items-center gap-6 shrink-0 px-6">
-                                  {(isCustomizeMode && canCustomize) ? (
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); setEditingLevel(level); setCustomIcon(level.icon); setCustomColorName(level.customColor || 'أزرق'); playPositiveSound(); }}
-                                      className="px-6 py-3 rounded-2xl bg-amber-500 text-white font-black text-[11px] uppercase shadow-xl shadow-amber-500/20 active:scale-90 transition-all hover:bg-amber-600"
-                                    >
-                                      تعديل المظهر
-                                    </button>
+                                  {level.isLocked ? (
+                                    <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border ${isDark ? 'bg-slate-900 border-white/5 text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
+                                        <span className="text-xs">🔒</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">مغلق حالياً</span>
+                                    </div>
                                   ) : (
-                                    <>
-                                       {level.isLocked ? (
-                                          <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border ${isDark ? 'bg-slate-900 border-white/5 text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
-                                             <span className="text-xs">🔒</span>
-                                             <span className="text-[10px] font-black uppercase tracking-widest">مغلق حالياً</span>
-                                          </div>
-                                       ) : (
-                                          <div className={`flex items-center gap-3 px-8 py-3.5 rounded-2xl border transition-all duration-300 ${level.isCompleted ? 'bg-emerald-500 text-white border-emerald-500 shadow-xl shadow-emerald-500/20' : 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-1'}`}>
-                                             <span className="text-[10px] font-black uppercase tracking-widest">{level.isCompleted ? 'مكتمل بنجاح' : 'دخول المحطة'}</span>
-                                             <span className="text-xl leading-none">{level.isCompleted ? '✓' : '→'}</span>
-                                          </div>
-                                       )}
-                                    </>
+                                    <div className={`flex items-center gap-3 px-8 py-3.5 rounded-2xl border transition-all duration-300 ${level.isCompleted ? 'bg-emerald-500 text-white border-emerald-500 shadow-xl shadow-emerald-500/20' : 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-1'}`}>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">{level.isCompleted ? 'مكتمل' : 'دخول المحطة'}</span>
+                                        <span className="text-xl leading-none">{level.isCompleted ? '✓' : '→'}</span>
+                                    </div>
                                   )}
                                </div>
                             </div>
@@ -470,23 +387,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                      <div key={task.id} className="p-10 rounded-[3.5rem] card-neo">
                         <div className="flex justify-between items-center mb-8">
                            <span className="text-[10px] font-black uppercase text-blue-500 tracking-[0.2em]">Milestone 0{task.levelId}</span>
-                           <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase border ${task.status === 'ASSIGNED' ? 'bg-blue-50 text-blue-600 border-blue-100' : task.status === 'SUBMITTED' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>{task.status}</span>
+                           <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase border ${task.status === 'ASSIGNED' ? 'bg-blue-50 text-blue-600 border-blue-100' : task.status === 'SUBMITTED' ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>{task.status === 'APPROVED' ? 'مقبول' : task.status}</span>
                         </div>
                         <h4 className="text-2xl font-black mb-4 leading-tight">{task.title}</h4>
                         <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium">{task.description}</p>
                         {task.status === 'ASSIGNED' && (
-                           <button 
-                              onClick={() => setSelectedTask(task)} 
-                              className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-sm hover:brightness-110 transition-all shadow-xl shadow-blue-600/20 active:scale-95"
-                           >
-                              تسليم المخرج النهائي (PDF)
-                           </button>
+                           <button onClick={() => setSelectedTask(task)} className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-sm hover:brightness-110 transition-all shadow-xl shadow-blue-600/20 active:scale-95">تسليم المخرج (PDF)</button>
                         )}
                         {task.status === 'SUBMITTED' && (
                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">تم رفع الملف: {task.submission?.fileName}</p>
-                              <p className="text-[10px] text-emerald-500 font-bold mt-1">جاري مراجعة المخرج النهائي</p>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">تم الرفع: {task.submission?.fileName}</p>
+                              <p className="text-[10px] text-amber-500 font-bold mt-1">جاري المراجعة الاستراتيجية</p>
                            </div>
+                        )}
+                        {task.status === 'APPROVED' && (
+                          <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
+                             <p className="text-[10px] text-emerald-600 font-black uppercase">تم قبول المخرج بنجاح ✓</p>
+                          </div>
                         )}
                      </div>
                    ))}
@@ -562,7 +479,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                           <h4 className="text-2xl font-black mb-4 leading-tight">{svc.title}</h4>
                           <p className="text-sm text-slate-500 mb-10 leading-relaxed font-medium line-clamp-3">{svc.description}</p>
                         </div>
-                        <button onClick={() => setSelectedService(svc)} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-blue-600 transition-all active:scale-95 shadow-lg">اكتشف الباقات المتاحة</button>
+                        <button onClick={() => { setSelectedService(svc); playPositiveSound(); }} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-blue-600 transition-all active:scale-95 shadow-lg">اكتشف الباقات المتاحة</button>
                      </div>
                    ))}
                 </div>
@@ -597,13 +514,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">الوصف الاستراتيجي للمشروع</label>
                             <textarea className={`w-full h-40 p-6 rounded-2xl border outline-none font-medium text-base resize-none ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'} focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all leading-relaxed`} value={userProfile.startupDescription} onChange={e => setUserProfile({...userProfile, startupDescription: e.target.value})} />
                          </div>
-                         <button onClick={handleSaveProfile} disabled={isSaving} className="w-full py-6 bg-blue-600 text-white rounded-[1.8rem] font-black text-lg shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform active:scale-95">
-                            {isSaving ? (
-                              <div className="flex items-center justify-center gap-4">
-                                <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                <span>جاري الحفظ...</span>
-                              </div>
-                            ) : 'حفظ التعديلات الاستراتيجية'}
+                         <button onClick={() => { setIsSaving(true); setTimeout(() => { setIsSaving(false); playCelebrationSound(); }, 800); }} disabled={isSaving} className="w-full py-6 bg-blue-600 text-white rounded-[1.8rem] font-black text-lg shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform active:scale-95">
+                            {isSaving ? 'جاري الحفظ...' : 'حفظ التعديلات الاستراتيجية'}
                          </button>
                       </div>
                    </div>
@@ -611,57 +523,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
              </div>
            )}
         </div>
-
-        {/* Level Editing Modal */}
-        {editingLevel && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-fade-in" dir="rtl">
-            <div className={`max-w-xl w-full p-14 rounded-[4rem] border shadow-3xl ${isDark ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-100 text-slate-900'}`}>
-              <div className="flex justify-between items-start mb-10">
-                <div>
-                   <h3 className="text-3xl font-black tracking-tight">تخصيص: المستوى {editingLevel.id}</h3>
-                   <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1">Appearance Configuration</p>
-                </div>
-                <button onClick={() => setEditingLevel(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">✕</button>
-              </div>
-
-              <div className="flex flex-col items-center gap-12">
-                <div className={`w-36 h-36 rounded-[3rem] flex items-center justify-center text-7xl shadow-2xl transition-all duration-700 ${getLevelColorSet(customColorName).bg} text-white premium-shadow`}>
-                  {customIcon || editingLevel.icon}
-                </div>
-                <div className="w-full space-y-8">
-                  <div className="relative group">
-                    <input 
-                      className={`w-full p-6 text-5xl text-center rounded-[2.5rem] border-2 outline-none font-serif ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'} focus:border-blue-500 transition-all`} 
-                      value={customIcon} 
-                      onChange={e => setCustomIcon(e.target.value.substring(0,4))} 
-                      placeholder="Icon" 
-                    />
-                    <button 
-                      onClick={handleAISuggestForSingleLevel}
-                      disabled={isAISuggesting}
-                      title="اقتراح أيقونة بالذكاء الاصطناعي"
-                      className="absolute left-5 top-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-all disabled:opacity-50"
-                    >
-                      {isAISuggesting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : '✨'}
-                    </button>
-                  </div>
-                  <div className="space-y-4">
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">اختيار هوية اللون</p>
-                     <div className="grid grid-cols-4 md:grid-cols-8 gap-4">
-                       {PRESET_COLORS.map(color => (
-                         <button key={color.name} onClick={() => { setCustomColorName(color.name); playPositiveSound(); }} className={`w-10 h-10 rounded-2xl ${color.bg} border-4 transition-all ${customColorName === color.name ? 'border-white ring-4 ' + color.ring + ' scale-110' : 'border-transparent opacity-40 hover:opacity-100'}`} />
-                       ))}
-                     </div>
-                  </div>
-                </div>
-                <div className="flex gap-4 w-full pt-6">
-                  <button onClick={() => setEditingLevel(null)} className="flex-1 py-5 rounded-3xl font-black text-slate-400 hover:text-slate-600 transition-colors">إلغاء</button>
-                  <button onClick={handleSaveCustomization} className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black shadow-xl shadow-blue-500/20 active:scale-95 transition-all hover:bg-blue-700">حفظ التفضيلات</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Task Submission Modal */}
         {selectedTask && (
@@ -674,16 +535,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                  </div>
                  <button onClick={() => { setSelectedTask(null); setSubmissionFile(null); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">✕</button>
               </div>
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 mb-8">
+              <div className="bg-slate-50 dark:bg-white/5 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5 mb-8">
                 <p className="text-slate-500 text-sm leading-relaxed font-medium">{selectedTask.description}</p>
               </div>
               
-              <div 
-                onClick={() => taskFileRef.current?.click()}
-                className={`w-full h-64 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300
-                  ${submissionFile ? 'bg-emerald-500/5 border-emerald-500' : (isDark ? 'bg-slate-800 border-white/5 hover:border-blue-500/50' : 'bg-slate-50 border-slate-200 hover:border-blue-500/50')}
-                `}
-              >
+              <div onClick={() => taskFileRef.current?.click()} className={`w-full h-72 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ${submissionFile ? 'bg-emerald-500/5 border-emerald-500' : (isDark ? 'bg-slate-800 border-white/5 hover:border-blue-500/50' : 'bg-slate-50 border-slate-200 hover:border-blue-500/50')}`}>
                  <input type="file" ref={taskFileRef} className="hidden" accept="application/pdf" onChange={handleTaskFileUpload} />
                  {submissionFile ? (
                    <>
@@ -708,7 +564,78 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
           </div>
         )}
 
-        {showRatingModal && <ProgramEvaluation onClose={() => setShowRatingModal(false)} onSubmit={handleRatingSubmit} />}
+        {/* Fix: Added selectedService Modal to handle package selection and request details */}
+        {selectedService && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in" dir="rtl">
+            <div className={`max-w-4xl w-full p-10 md:p-14 rounded-[4rem] ${isDark ? 'bg-slate-900 border border-white/5 text-white' : 'bg-white shadow-2xl text-slate-900'} animate-fade-in-up overflow-y-auto max-h-[90vh]`}>
+               <div className="flex justify-between items-start mb-12">
+                  <div className="flex items-center gap-6">
+                    <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center text-4xl shadow-xl text-white">{selectedService.icon}</div>
+                    <div>
+                      <h3 className="text-3xl font-black tracking-tight">{selectedService.title}</h3>
+                      <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest mt-1">Premium Execution Services</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setSelectedService(null); setSelectedPackageId(null); setServiceDetails(''); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors text-2xl">✕</button>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                  {selectedService.packages.map(pkg => (
+                    <button 
+                      key={pkg.id} 
+                      onClick={() => setSelectedPackageId(pkg.id)}
+                      className={`p-8 rounded-[2.5rem] border-4 text-right transition-all duration-300 relative group
+                        ${selectedPackageId === pkg.id 
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-2xl shadow-blue-500/20' 
+                          : (isDark ? 'bg-white/5 border-white/5 hover:border-blue-500/50' : 'bg-slate-50 border-slate-100 hover:border-blue-500/50')}
+                      `}
+                    >
+                      <div className="flex justify-between items-start mb-6">
+                         <h4 className="text-2xl font-black">{pkg.name}</h4>
+                         <span className={`text-xl font-black ${selectedPackageId === pkg.id ? 'text-white' : 'text-blue-600'}`}>{pkg.price}</span>
+                      </div>
+                      <ul className="space-y-3 mb-4">
+                         {pkg.features.map((f, i) => (
+                           <li key={i} className={`text-sm font-bold flex items-center gap-3 ${selectedPackageId === pkg.id ? 'text-blue-50' : 'text-slate-500'}`}>
+                             <span className={`w-1.5 h-1.5 rounded-full ${selectedPackageId === pkg.id ? 'bg-white' : 'bg-blue-500'}`}></span>
+                             {f}
+                           </li>
+                         ))}
+                      </ul>
+                      {selectedPackageId === pkg.id && (
+                        <div className="absolute -top-3 -right-3 w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center text-lg shadow-lg">✓</div>
+                      )}
+                    </button>
+                  ))}
+               </div>
+
+               <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">تفاصيل إضافية أو متطلبات خاصة:</label>
+                  <textarea 
+                    className={`w-full h-32 p-6 rounded-[2rem] border outline-none font-medium resize-none transition-all
+                      ${isDark ? 'bg-white/5 border-white/5 focus:border-blue-500' : 'bg-slate-50 border-slate-100 focus:border-blue-500'}
+                    `}
+                    placeholder="اكتب هنا أي تفاصيل تود مشاركتها مع فريق التنفيذ..."
+                    value={serviceDetails}
+                    onChange={e => setServiceDetails(e.target.value)}
+                  />
+               </div>
+
+               <div className="flex gap-4 mt-12">
+                  <button onClick={() => { setSelectedService(null); setSelectedPackageId(null); setServiceDetails(''); }} className="flex-1 py-6 font-black text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest text-xs">إلغاء الطلب</button>
+                  <button 
+                    onClick={handleServiceRequestSubmit} 
+                    disabled={!selectedPackageId} 
+                    className="flex-[2] py-6 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/30 disabled:opacity-30 active:scale-95 transition-all hover:bg-blue-700"
+                  >
+                    تأكيد وإرسال طلب التنفيذ 🚀
+                  </button>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {showRatingModal && <ProgramEvaluation onClose={() => setShowRatingModal(false)} onSubmit={() => {}} />}
       </main>
     </div>
   );

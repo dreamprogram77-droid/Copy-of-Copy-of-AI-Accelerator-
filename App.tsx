@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FiltrationStage, ApplicantProfile, FinalResult, UserProfile, LevelData, LEVELS_CONFIG, NominationResult, ProjectEvaluationResult, TaskRecord } from './types';
 import { storageService } from './services/storageService';
 import { suggestIconsForLevels } from './services/geminiService';
+import { Language, getTranslation } from './services/i18nService';
 import { Registration } from './components/Registration';
 import { Login } from './components/Login';
 import { NominationTest } from './components/Filtration/NominationTest';
@@ -34,8 +35,25 @@ function App() {
   const [activeLegal, setActiveLegal] = useState<LegalType>(null);
   const [nominationOutcome, setNominationOutcome] = useState<NominationResult | null>(null);
   const [projectEvaluation, setProjectEvaluation] = useState<ProjectEvaluationResult | null>(null);
+  
+  // Language Management
+  const [currentLang, setCurrentLang] = useState<Language>(() => 
+    (localStorage.getItem('preferred_language') as Language) || 'ar'
+  );
 
-  // وظيفة موحدة لجلب بيانات الجلسة وتحديث واجهة المستخدم
+  const t = getTranslation(currentLang);
+
+  useEffect(() => {
+    document.documentElement.dir = t.dir;
+    document.documentElement.lang = currentLang;
+    document.body.style.fontFamily = t.font + ', sans-serif';
+    localStorage.setItem('preferred_language', currentLang);
+  }, [currentLang, t]);
+
+  const handleLanguageChange = (lang: Language) => {
+    setCurrentLang(lang);
+  };
+
   const hydrateSession = useCallback(() => {
     const session = storageService.getCurrentSession();
     if (session) {
@@ -76,7 +94,6 @@ function App() {
             }
           }
           
-          // دمج التخصيصات المحفوظة
           const custom = userCustoms[lvl.id];
           return { 
             ...lvl, 
@@ -93,7 +110,6 @@ function App() {
     }
   }, []);
 
-  // تفعيل ميزة الأيقونات الذكية عند التشغيل الأول
   useEffect(() => {
     const fetchAIIcons = async () => {
       try {
@@ -103,7 +119,6 @@ function App() {
         const iconMap = await suggestIconsForLevels(LEVELS_CONFIG);
         if (Object.keys(iconMap).length > 0) {
           setLevels(prev => prev.map(lvl => {
-            // لا نغير الأيقونة إذا كان المستخدم قد خصصها يدوياً
             if (userCustoms[lvl.id]?.icon) return lvl;
             return {
               ...lvl,
@@ -136,11 +151,6 @@ function App() {
     if (session) {
       storageService.updateProgress(session.uid, id, { status: 'COMPLETED', score: 100, completedAt: new Date().toISOString() });
     }
-    
-    handleHydrateAfterProgress();
-  };
-
-  const handleHydrateAfterProgress = () => {
     hydrateSession();
     setStage(FiltrationStage.DASHBOARD);
   };
@@ -157,34 +167,29 @@ function App() {
     try {
       const session = storageService.getCurrentSession();
       if (!session) return;
-      
       const iconMap = await suggestIconsForLevels(levels);
       if (Object.keys(iconMap).length > 0) {
         Object.entries(iconMap).forEach(([id, emoji]) => {
           storageService.saveLevelCustomization(session.uid, parseInt(id), { icon: emoji });
         });
-        
         setLevels(prev => prev.map(lvl => ({
           ...lvl,
           icon: iconMap[lvl.id] || lvl.icon
         })));
       }
-    } catch (err) {
-      throw err;
-    }
+    } catch (err) { throw err; }
   };
 
-  // Fixed the parameter type to allow submissionData objects (like fileData/fileName)
   const handleTaskSubmitFromView = (taskId: string, submissionData: any) => {
     const session = storageService.getCurrentSession();
     if (session) {
       storageService.submitTask(session.uid, taskId, submissionData);
-      hydrateSession(); // Sync tasks and levels
+      hydrateSession();
     }
   };
 
   return (
-    <div className="font-sans antialiased text-slate-900">
+    <div className={`font-sans antialiased text-slate-900 ${t.dir === 'rtl' ? 'text-right' : 'text-left'}`} dir={t.dir}>
       {stage === FiltrationStage.LANDING && (
         <LandingPage 
           onStart={() => setStage(FiltrationStage.WELCOME)} 
@@ -199,13 +204,15 @@ function App() {
           onMentorship={() => setStage(FiltrationStage.MENTORSHIP)}
           onIncubation={() => setStage(FiltrationStage.INCUBATION_PROGRAM)}
           onMemberships={() => setStage(FiltrationStage.MEMBERSHIPS)}
+          lang={currentLang}
+          onLanguageChange={handleLanguageChange}
         />
       )}
 
       {stage === FiltrationStage.MEMBERSHIPS && (
         <MembershipsPage 
           onBack={() => setStage(FiltrationStage.LANDING)} 
-          onSelect={(pkg) => { alert(`شكراً لاهتمامك بـ ${pkg}. سيتم تفعيل الدفع قريباً!`); setStage(FiltrationStage.WELCOME); }} 
+          onSelect={(pkg) => { alert(`Thank you for interest in ${pkg}!`); setStage(FiltrationStage.WELCOME); }} 
         />
       )}
 
@@ -235,7 +242,7 @@ function App() {
             setNominationOutcome(res);
             const result: FinalResult = {
               score: res.totalScore,
-              leadershipStyle: res.category === 'DIRECT_ADMISSION' ? "رائد أعمال متمكن" : "ريادي قيد التطوير",
+              leadershipStyle: res.category === 'DIRECT_ADMISSION' ? "Entrepreneur" : "Developing Visionary",
               metrics: { readiness: res.totalScore * 0.8, analysis: res.totalScore * 0.9, tech: res.totalScore * 0.7, personality: 85, strategy: res.totalScore * 0.75, ethics: 95 },
               projectEval: projectEvaluation || undefined,
               isQualified: res.category === 'DIRECT_ADMISSION' || res.category === 'INTERVIEW',
@@ -245,7 +252,7 @@ function App() {
             setFinalResult(result);
             setStage(FiltrationStage.ASSESSMENT_RESULT);
           }} 
-          onReject={(reason) => { alert(`تم رفض الطلب: ${reason}`); setStage(FiltrationStage.LANDING); }}
+          onReject={(reason) => { alert(`Rejected: ${reason}`); setStage(FiltrationStage.LANDING); }}
         />
       )}
       
@@ -266,7 +273,7 @@ function App() {
           levels={levels} 
           onSelectLevel={(id) => {
             const lvl = levels.find(l => l.id === id);
-            if (lvl?.isLocked) return alert('هذه المحطة مغلقة.');
+            if (lvl?.isLocked) return alert('Locked.');
             setActiveLevelId(id); 
             setStage(FiltrationStage.LEVEL_VIEW); 
           }} 
@@ -275,6 +282,8 @@ function App() {
           onOpenProAnalytics={() => setStage(FiltrationStage.PROJECT_BUILDER)}
           onUpdateLevelUI={updateLevelUI}
           onAISuggestIcons={handleAISuggestIcons}
+          lang={currentLang}
+          onLanguageChange={handleLanguageChange}
         />
       )}
 

@@ -142,7 +142,12 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
     quizQuestions.forEach((q, idx) => { if (q.correctIndex === quizAnswers[idx]) score++; });
     if (score >= Math.ceil(quizQuestions.length * 0.6)) {
        playPositiveSound();
-       setStep(Step.OFFICIAL_TASK); 
+       // Check if there is a task linked to this level
+       if (levelTask) {
+          setStep(Step.OFFICIAL_TASK);
+       } else {
+          setStep(Step.COMPLETED);
+       }
     } else {
       playErrorSound();
       alert('نعتذر، لم تجتاز الاختبار بنسبة كافية. يرجى مراجعة المادة وإعادة المحاولة.');
@@ -303,7 +308,7 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
                        <div className="w-32 h-32 bg-blue-600/10 rounded-[3rem] flex items-center justify-center mx-auto text-7xl shadow-inner animate-float">📥</div>
                        <div className="space-y-4">
                           <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">اكتمل المسار المعرفي</h3>
-                          <p className="text-slate-500 text-xl font-medium max-w-xl mx-auto leading-relaxed">أنت الآن جاهز للتطبيق العملي. قمنا بتوفير أدوات Gemini المساعدة لمشروعك في هذا المستوى لمساعدتك في بناء المخرج النهائي.</p>
+                          <p className="text-slate-500 text-xl font-medium max-w-xl mx-auto leading-relaxed">أنت الآن جاهز للتطبيق العملي وتسليم مخرج هذه المحطة.</p>
                           <button onClick={exportLevelPDF} className="inline-flex items-center gap-3 px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-sm hover:scale-105 transition-all shadow-xl">
                              <span>تحميل المادة العلمية (PDF)</span>
                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -393,7 +398,7 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
                  
                  <div className="space-y-10">
                     <div className="bg-slate-50 dark:bg-white/5 p-10 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-inner">
-                       <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">وصف المهمة التنفيذية:</h4>
+                       <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">وصف المهمة التنفيذية لهذه المحطة:</h4>
                        <p className="text-xl font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic opacity-90">{levelTask.description}</p>
                     </div>
 
