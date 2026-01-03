@@ -1,25 +1,31 @@
 
 import React, { useState } from 'react';
 import { storageService } from '../services/storageService';
-import { UserProfile } from '../types';
+import { UserProfile, UserRole } from '../types';
 import { playPositiveSound, playErrorSound } from '../services/audioService';
 
 interface LoginProps {
-  onLoginSuccess: (user: UserProfile) => void;
+  onLoginSuccess: (user: UserProfile & { role: UserRole; uid: string; startupId?: string }) => void;
   onBack: () => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack }) => {
+  const [selectedRole, setSelectedRole] = useState<UserRole>('STARTUP');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState(''); 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e?: React.FormEvent, targetEmail?: string) => {
-    if (e) e.preventDefault();
-    
-    const finalEmail = targetEmail || email;
-    if (!finalEmail) {
+  const rolesMeta = [
+    { id: 'STARTUP', label: 'شركة محتضنة', icon: '🚀', desc: 'متابعة نضج مشروعك', color: 'blue' },
+    { id: 'PARTNER', label: 'شريك (Partner)', icon: '🤝', desc: 'فرص الشراكة النشطة', color: 'emerald' },
+    { id: 'MENTOR', label: 'مرشد (Mentor)', icon: '🧠', desc: 'إدارة جلسات الإرشاد', color: 'purple' },
+    { id: 'ADMIN', label: 'الإدارة', icon: '👑', desc: 'التحكم المركزي', color: 'slate' },
+  ];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
       setError('يرجى إدخال البريد الإلكتروني');
       return;
     }
@@ -27,21 +33,28 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack }) => {
     setIsLoading(true);
     setError(null);
 
-    // Simulate small delay for UX feel
     setTimeout(() => {
-      const result = storageService.loginUser(finalEmail);
+      const result = storageService.loginUser(email);
       
       if (result) {
-        const profile: UserProfile = {
+        // Simple role check logic
+        if (selectedRole === 'ADMIN' && result.user.role !== 'ADMIN') {
+          setError('هذا الحساب لا يملك صلاحيات الإدارة.');
+          playErrorSound();
+          setIsLoading(false);
+          return;
+        }
+
+        const profile: any = {
           firstName: result.user.firstName,
           lastName: result.user.lastName,
           email: result.user.email,
           phone: result.user.phone,
-          startupName: result.startup.name,
-          startupDescription: result.startup.description,
-          industry: result.startup.industry,
+          uid: result.user.uid,
+          role: result.user.role || selectedRole,
+          startupName: result.startup?.name || '',
+          startupId: result.startup?.projectId,
           name: `${result.user.firstName} ${result.user.lastName}`,
-          hasCompletedAssessment: result.startup.status === 'APPROVED'
         };
         
         playPositiveSound();
@@ -54,154 +67,100 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack }) => {
     }, 1200);
   };
 
-  const handleDemoLogin = () => {
-    setIsLoading(true);
-    setError(null);
-    playPositiveSound();
-
-    setTimeout(() => {
-      const demoEmail = storageService.seedDemoAccount();
-      setEmail(demoEmail);
-      setPassword('demo123');
-      const result = storageService.loginUser(demoEmail);
-      
-      if (result) {
-        const profile: UserProfile = {
-          firstName: result.user.firstName,
-          lastName: result.user.lastName,
-          email: result.user.email,
-          phone: result.user.phone,
-          startupName: result.startup.name,
-          startupDescription: result.startup.description,
-          industry: result.startup.industry,
-          name: `${result.user.firstName} ${result.user.lastName}`,
-          hasCompletedAssessment: result.startup.status === 'APPROVED'
-        };
-        onLoginSuccess(profile);
-      }
-      setIsLoading(false);
-    }, 800);
-  };
-
   return (
     <div className="min-h-screen flex bg-slate-950 font-sans overflow-hidden text-white" dir="rtl">
-      <style>{`
-        .login-mesh {
-          background-image: radial-gradient(at 0% 0%, hsla(215, 98%, 61%, 0.1) 0px, transparent 50%),
-                            radial-gradient(at 100% 100%, hsla(215, 98%, 61%, 0.05) 0px, transparent 50%);
-        }
-      `}</style>
-      
-      {/* Visual Sidebar */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 flex-col justify-center p-20 border-l border-white/5 overflow-hidden">
-        <div className="absolute inset-0 login-mesh opacity-50"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.1),transparent_50%)] opacity-50"></div>
         <div className="relative z-10 space-y-12">
-          <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center border border-white/20 shadow-2xl animate-float">
+          <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center border border-white/20 shadow-2xl animate-float">
              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
           <div className="space-y-6">
-            <h1 className="text-7xl font-black leading-tight tracking-tighter">أهلاً بك <br/><span className="text-blue-500">من جديد.</span></h1>
-            <p className="text-2xl text-slate-400 max-w-lg leading-relaxed font-medium">سجل دخولك لمتابعة نضج مشروعك الريادي، أو استكشف المنصة عبر الحساب التجريبي المخصص للزوار.</p>
+            <h1 className="text-7xl font-black leading-tight tracking-tighter">بوابة <br/><span className="text-blue-500">الدخول الموحد.</span></h1>
+            <p className="text-2xl text-slate-400 max-w-lg leading-relaxed font-medium">اختر هويتك في المسرعة للوصول إلى أدواتك المخصصة. نحن نبني المستقبل معاً.</p>
           </div>
         </div>
       </div>
 
-      {/* Login Form Area */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-12 relative">
-        <div className="max-w-md w-full animate-fade-in-up space-y-12">
-           <header className="space-y-4">
-              <div className="lg:hidden w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl mb-6">
-                 <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              </div>
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-12 overflow-y-auto">
+        <div className="max-w-xl w-full animate-fade-in-up space-y-10 py-10">
+           <header className="space-y-4 text-center">
               <h2 className="text-4xl font-black text-white tracking-tight">تسجيل الدخول</h2>
-              <p className="text-slate-500 font-medium text-lg">الوصول إلى بوابة التسريع الذكي</p>
+              <p className="text-slate-500 font-medium text-lg">اختر الدور الخاص بك للدخول للمنصة</p>
            </header>
 
-           <form onSubmit={handleSubmit} className="space-y-8">
+           {/* Role Selector Grid */}
+           <div className="grid grid-cols-2 gap-4">
+              {rolesMeta.map(role => (
+                <button
+                  key={role.id}
+                  onClick={() => { setSelectedRole(role.id as UserRole); playPositiveSound(); }}
+                  className={`p-6 rounded-[2.5rem] border text-right transition-all flex flex-col gap-3 group
+                    ${selectedRole === role.id 
+                      ? `bg-${role.color}-600/10 border-${role.color}-500 shadow-xl shadow-${role.color}-500/10` 
+                      : 'bg-white/5 border-white/5 hover:border-white/20 opacity-60 hover:opacity-100'}
+                  `}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-3xl">{role.icon}</span>
+                    <div className={`w-3 h-3 rounded-full ${selectedRole === role.id ? `bg-${role.color}-500 animate-pulse` : 'bg-slate-700'}`}></div>
+                  </div>
+                  <div>
+                    <h4 className={`font-black text-sm ${selectedRole === role.id ? `text-${role.color}-400` : 'text-slate-300'}`}>{role.label}</h4>
+                    <p className="text-[9px] text-slate-500 font-bold mt-1 uppercase tracking-tighter">{role.desc}</p>
+                  </div>
+                </button>
+              ))}
+           </div>
+
+           <form onSubmit={handleSubmit} className="space-y-8 bg-white/5 p-10 rounded-[3rem] border border-white/5">
               <div className="space-y-3">
                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest pr-2">البريد الإلكتروني</label>
-                 <div className="relative group">
-                    <input 
-                      type="email" 
-                      required
-                      className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[1.5rem] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-white font-bold text-lg placeholder-slate-700"
-                      placeholder="name@startup.ai"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                    />
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20 text-xl group-focus-within:opacity-100 transition-opacity">📧</span>
-                 </div>
+                 <input 
+                    type="email" 
+                    required
+                    className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl outline-none focus:border-blue-500 transition-all text-white font-bold text-lg"
+                    placeholder="name@startup.ai"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                 />
               </div>
 
               <div className="space-y-3">
-                 <div className="flex justify-between items-center pr-2">
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">كلمة المرور</label>
-                    <button type="button" className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest">نسيت السر؟</button>
-                 </div>
-                 <div className="relative group">
-                    <input 
-                      type="password" 
-                      className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[1.5rem] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-white font-bold text-lg placeholder-slate-700"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                    />
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20 text-xl group-focus-within:opacity-100 transition-opacity">🔑</span>
-                 </div>
+                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest pr-2">كلمة المرور</label>
+                 <input 
+                    type="password" 
+                    className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl outline-none focus:border-blue-500 transition-all text-white font-bold text-lg"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                 />
               </div>
 
               {error && (
-                <div className="p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-4 animate-shake">
-                   <div className="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center text-white font-bold">!</div>
-                   <p className="text-sm font-bold text-rose-400">{error}</p>
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 animate-shake">
+                   <span className="text-rose-500">⚠️</span>
+                   <p className="text-xs font-bold text-rose-400">{error}</p>
                 </div>
               )}
 
-              <div className="pt-4 space-y-6">
-                 <button 
-                   type="submit" 
-                   disabled={isLoading}
-                   className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xl shadow-2xl shadow-blue-900/30 transition-all transform active:scale-95 flex items-center justify-center gap-4 group disabled:opacity-50"
-                 >
-                   {isLoading ? (
-                     <div className="w-6 h-6 border-[3.5px] border-white/20 border-t-white rounded-full animate-spin"></div>
-                   ) : (
-                     <>
-                        <span>دخول للمسرعة</span>
-                        <svg className="w-6 h-6 transform rotate-180 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                     </>
-                   )}
-                 </button>
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xl shadow-2xl transition-all transform active:scale-95 flex items-center justify-center gap-4 group disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <span>دخول للمنصة</span>
+                    <svg className="w-6 h-6 transform rotate-180 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                  </>
+                )}
+              </button>
 
-                 <div className="relative py-6">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
-                    <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em]"><span className="bg-slate-950 px-6 text-slate-600">أو استكشف كزائر</span></div>
-                 </div>
-
-                 <button 
-                   type="button" 
-                   onClick={handleDemoLogin}
-                   disabled={isLoading}
-                   className="w-full py-5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 border-2 border-dashed border-blue-500/30 text-blue-400 rounded-2xl font-black text-base transition-all flex items-center justify-center gap-4 active:scale-95 group"
-                 >
-                   <span className="text-2xl group-hover:scale-125 transition-transform">👁️</span>
-                   <span>الدخول بالحساب التجريبي</span>
-                   <span className="text-[10px] bg-blue-500/20 px-3 py-1 rounded-full text-blue-300 font-black uppercase tracking-widest">Instant Access</span>
-                 </button>
-
-                 <button 
-                   type="button" 
-                   onClick={onBack}
-                   className="w-full py-4 text-slate-500 hover:text-white font-black text-xs uppercase tracking-widest transition-colors"
-                 >
-                   العودة للرئيسية
-                 </button>
-              </div>
+              <button type="button" onClick={onBack} className="w-full text-center text-[10px] font-black text-slate-600 hover:text-slate-400 uppercase tracking-[0.2em] mt-4">العودة للرئيسية</button>
            </form>
-
-           <footer className="pt-20 text-center border-t border-white/5">
-              <p className="text-slate-600 text-sm font-bold">ليس لديك حساب؟ <button onClick={onBack} className="text-blue-500 font-black hover:text-blue-400 transition-colors">سجل مشروعك الآن</button></p>
-           </footer>
         </div>
       </div>
     </div>

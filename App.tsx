@@ -1,42 +1,29 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiltrationStage, ApplicantProfile, FinalResult, UserProfile, LevelData, LEVELS_CONFIG, NominationResult, ProjectEvaluationResult, TaskRecord } from './types';
+import { FiltrationStage, UserProfile, UserRole, StartupRecord } from './types';
 import { storageService } from './services/storageService';
-import { suggestIconsForLevels } from './services/geminiService';
 import { Language, getTranslation } from './services/i18nService';
 import { Registration } from './components/Registration';
 import { Login } from './components/Login';
-import { NominationTest } from './components/Filtration/NominationTest';
-import { ProjectEvaluation } from './components/Filtration/ProjectEvaluation';
-import { AssessmentResult } from './components/Filtration/AssessmentResult';
-import { DevelopmentPlan } from './components/Filtration/DevelopmentPlan';
 import { LandingPage } from './components/LandingPage';
 import { RoadmapPage } from './components/RoadmapPage';
 import { PathFinder } from './components/PathFinder';
-import { Dashboard } from './components/Dashboard';
-import { LevelView } from './components/LevelView';
-import { Certificate } from './components/Certificate';
-import { AdminDashboard } from './components/Filtration/AdminDashboard';
+import { DashboardHub } from './components/DashboardHub';
 import { ToolsPage } from './components/ToolsPage';
 import { LegalPortal, LegalType } from './components/LegalPortal';
-import { StaffPortal } from './components/StaffPortal';
 import { AchievementsPage } from './components/AchievementsPage';
 import { MentorshipPage } from './components/MentorshipPage';
 import { IncubationProgram } from './components/IncubationProgram';
 import { MembershipsPage } from './components/MembershipsPage';
+import { PartnerConceptPage } from './components/PartnerConceptPage';
+import { AIMentorConceptPage } from './components/AIMentorConceptPage';
 
 function App() {
   const [stage, setStage] = useState<FiltrationStage>(FiltrationStage.LANDING);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [finalResult, setFinalResult] = useState<FinalResult | null>(null);
-  const [levels, setLevels] = useState<LevelData[]>(LEVELS_CONFIG);
-  const [userTasks, setUserTasks] = useState<TaskRecord[]>([]);
-  const [activeLevelId, setActiveLevelId] = useState<number | null>(null);
+  const [currentUser, setCurrentUser] = useState<(UserProfile & { uid: string; role: UserRole; startupId?: string }) | null>(null);
+  const [registrationRole, setRegistrationRole] = useState<UserRole>('STARTUP');
   const [activeLegal, setActiveLegal] = useState<LegalType>(null);
-  const [nominationOutcome, setNominationOutcome] = useState<NominationResult | null>(null);
-  const [projectEvaluation, setProjectEvaluation] = useState<ProjectEvaluationResult | null>(null);
   
-  // Language Management
   const [currentLang, setCurrentLang] = useState<Language>(() => 
     (localStorage.getItem('preferred_language') as Language) || 'ar'
   );
@@ -50,150 +37,60 @@ function App() {
     localStorage.setItem('preferred_language', currentLang);
   }, [currentLang, t]);
 
-  const handleLanguageChange = (lang: Language) => {
-    setCurrentLang(lang);
-  };
-
   const hydrateSession = useCallback(() => {
     const session = storageService.getCurrentSession();
     if (session) {
-      const users = storageService.getAllUsers();
-      const currentUser = users.find(u => u.uid === session.uid);
+      const usersList = storageService.getAllUsers();
+      const userRec = usersList.find(u => u.uid === session.uid);
       const startups = storageService.getAllStartups();
       const startup = startups.find(s => s.ownerId === session.uid);
 
-      if (currentUser && startup) {
-        setUserProfile({
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
-          email: currentUser.email,
-          phone: currentUser.phone,
-          startupName: startup.name,
-          startupDescription: startup.description,
-          industry: startup.industry,
-          name: `${currentUser.firstName} ${currentUser.lastName}`,
-          hasCompletedAssessment: startup.status === 'APPROVED',
-          logo: localStorage.getItem(`logo_${currentUser.uid}`) || undefined
+      if (userRec) {
+        setCurrentUser({
+          uid: userRec.uid,
+          firstName: userRec.firstName,
+          lastName: userRec.lastName,
+          email: userRec.email,
+          phone: userRec.phone,
+          role: (userRec.role as UserRole) || 'STARTUP',
+          startupId: startup?.projectId,
+          startupName: startup?.name || '',
+          name: `${userRec.firstName} ${userRec.lastName}`,
+          startupDescription: startup?.description || '',
+          industry: startup?.industry || '',
         });
-
-        const userProgress = storageService.getUserProgress(currentUser.uid);
-        const userCustoms = storageService.getLevelCustomizations(currentUser.uid);
-        const tasks = storageService.getUserTasks(currentUser.uid);
-        setUserTasks(tasks);
-
-        const updatedLevels = LEVELS_CONFIG.map((lvl, index) => {
-          const progress = userProgress.find(p => p.levelId === lvl.id);
-          const isCompleted = progress?.status === 'COMPLETED';
-          
-          let isLocked = true;
-          if (startup.status === 'APPROVED') {
-            if (index === 0) isLocked = false;
-            else {
-              const prevLvl = userProgress.find(p => p.levelId === LEVELS_CONFIG[index-1].id);
-              if (prevLvl?.status === 'COMPLETED') isLocked = false;
-            }
-          }
-          
-          const custom = userCustoms[lvl.id];
-          return { 
-            ...lvl, 
-            isCompleted, 
-            isLocked,
-            icon: custom?.icon || lvl.icon,
-            customColor: custom?.customColor || lvl.customColor
-          };
-        });
-        
-        setLevels(updatedLevels);
         setStage(FiltrationStage.DASHBOARD);
       }
     }
   }, []);
 
   useEffect(() => {
-    const fetchAIIcons = async () => {
-      try {
-        const session = storageService.getCurrentSession();
-        const userCustoms = session ? storageService.getLevelCustomizations(session.uid) : {};
-        
-        const iconMap = await suggestIconsForLevels(LEVELS_CONFIG);
-        if (Object.keys(iconMap).length > 0) {
-          setLevels(prev => prev.map(lvl => {
-            if (userCustoms[lvl.id]?.icon) return lvl;
-            return {
-              ...lvl,
-              icon: iconMap[lvl.id] || lvl.icon
-            };
-          }));
-        }
-      } catch (err) {
-        console.error("System: AI Icon Enhancement failed.", err);
-      }
-    };
-    fetchAIIcons();
     hydrateSession();
   }, [hydrateSession]);
 
-  const handleLoginSuccess = (profile: UserProfile) => {
-    setUserProfile(profile);
-    hydrateSession();
+  const handleLoginSuccess = (user: any) => {
+    setCurrentUser(user);
     setStage(FiltrationStage.DASHBOARD);
   };
 
   const handleRegister = (profile: UserProfile) => {
-    storageService.registerUser(profile);
-    setUserProfile({ ...profile, name: `${profile.firstName} ${profile.lastName}`, hasCompletedAssessment: false });
-    setStage(FiltrationStage.PROJECT_EVALUATION);
-  };
-
-  const handleLevelComplete = (id: number) => {
-    const session = storageService.getCurrentSession();
-    if (session) {
-      storageService.updateProgress(session.uid, id, { status: 'COMPLETED', score: 100, completedAt: new Date().toISOString() });
-    }
+    // In a real app, you'd pass registrationRole to storageService.registerUser
+    storageService.registerUser({ ...profile }); 
     hydrateSession();
     setStage(FiltrationStage.DASHBOARD);
   };
 
-  const updateLevelUI = (id: number, icon: string, color: string) => {
-    const session = storageService.getCurrentSession();
-    if (session) {
-      storageService.saveLevelCustomization(session.uid, id, { icon, customColor: color });
-    }
-    setLevels(prev => prev.map(l => l.id === id ? { ...l, icon, customColor: color } : l));
-  };
-
-  const handleAISuggestIcons = async () => {
-    try {
-      const session = storageService.getCurrentSession();
-      if (!session) return;
-      const iconMap = await suggestIconsForLevels(levels);
-      if (Object.keys(iconMap).length > 0) {
-        Object.entries(iconMap).forEach(([id, emoji]) => {
-          storageService.saveLevelCustomization(session.uid, parseInt(id), { icon: emoji });
-        });
-        setLevels(prev => prev.map(lvl => ({
-          ...lvl,
-          icon: iconMap[lvl.id] || lvl.icon
-        })));
-      }
-    } catch (err) { throw err; }
-  };
-
-  const handleTaskSubmitFromView = (taskId: string, submissionData: any) => {
-    const session = storageService.getCurrentSession();
-    if (session) {
-      storageService.submitTask(session.uid, taskId, submissionData);
-      hydrateSession();
-    }
+  const startRegistration = (role: UserRole) => {
+    setRegistrationRole(role);
+    setStage(FiltrationStage.WELCOME);
   };
 
   return (
-    <div className={`font-sans antialiased text-slate-900 ${t.dir === 'rtl' ? 'text-right' : 'text-left'}`} dir={t.dir}>
+    <div className={`antialiased ${t.dir === 'rtl' ? 'text-right' : 'text-left'}`} dir={t.dir}>
       {stage === FiltrationStage.LANDING && (
         <LandingPage 
-          onStart={() => setStage(FiltrationStage.WELCOME)} 
-          onPathFinder={() => setStage(FiltrationStage.PATH_FINDER)} 
+          onStart={() => startRegistration('STARTUP')} 
+          onPathFinder={() => setStage(FiltrationStage.AI_MENTOR_CONCEPT)} 
           onSmartFeatures={() => {}} 
           onGovDashboard={() => {}} 
           onRoadmap={() => setStage(FiltrationStage.ROADMAP)} 
@@ -204,103 +101,47 @@ function App() {
           onMentorship={() => setStage(FiltrationStage.MENTORSHIP)}
           onIncubation={() => setStage(FiltrationStage.INCUBATION_PROGRAM)}
           onMemberships={() => setStage(FiltrationStage.MEMBERSHIPS)}
+          onPartnerConcept={() => setStage(FiltrationStage.PARTNER_CONCEPT)}
+          onAIMentorConcept={() => setStage(FiltrationStage.AI_MENTOR_CONCEPT)}
           lang={currentLang}
-          onLanguageChange={handleLanguageChange}
+          onLanguageChange={setCurrentLang}
         />
       )}
 
-      {stage === FiltrationStage.MEMBERSHIPS && (
-        <MembershipsPage 
-          onBack={() => setStage(FiltrationStage.LANDING)} 
-          onSelect={(pkg) => { alert(`Thank you for interest in ${pkg}!`); setStage(FiltrationStage.WELCOME); }} 
-        />
+      {stage === FiltrationStage.PARTNER_CONCEPT && (
+        <PartnerConceptPage onRegister={() => startRegistration('PARTNER')} onBack={() => setStage(FiltrationStage.LANDING)} />
       )}
 
-      {stage === FiltrationStage.INCUBATION_PROGRAM && (
-        <IncubationProgram onBack={() => setStage(FiltrationStage.LANDING)} onApply={() => setStage(FiltrationStage.WELCOME)} />
+      {stage === FiltrationStage.AI_MENTOR_CONCEPT && (
+        <AIMentorConceptPage onStart={() => setStage(FiltrationStage.PATH_FINDER)} onBack={() => setStage(FiltrationStage.LANDING)} />
       )}
 
       {stage === FiltrationStage.LOGIN && <Login onLoginSuccess={handleLoginSuccess} onBack={() => setStage(FiltrationStage.LANDING)} />}
-      {stage === FiltrationStage.ROADMAP && <RoadmapPage onStart={() => setStage(FiltrationStage.WELCOME)} onBack={() => setStage(FiltrationStage.LANDING)} />}
+      
+      {stage === FiltrationStage.WELCOME && (
+        <Registration 
+          role={registrationRole}
+          onRegister={handleRegister} 
+          onStaffLogin={() => setStage(FiltrationStage.STAFF_PORTAL)} 
+        />
+      )}
+
+      {stage === FiltrationStage.PATH_FINDER && <PathFinder onApproved={() => startRegistration('STARTUP')} onBack={() => setStage(FiltrationStage.LANDING)} />}
+      {stage === FiltrationStage.ROADMAP && <RoadmapPage onStart={() => startRegistration('STARTUP')} onBack={() => setStage(FiltrationStage.LANDING)} />}
       {stage === FiltrationStage.TOOLS && <ToolsPage onBack={() => setStage(FiltrationStage.LANDING)} />}
       {stage === FiltrationStage.ACHIEVEMENTS && <AchievementsPage onBack={() => setStage(FiltrationStage.LANDING)} />}
-      {stage === FiltrationStage.MENTORSHIP && <MentorshipPage user={userProfile || undefined} onBack={() => setStage(activeLevelId ? FiltrationStage.LEVEL_VIEW : FiltrationStage.DASHBOARD)} />}
-      {stage === FiltrationStage.PATH_FINDER && <PathFinder onApproved={() => setStage(FiltrationStage.WELCOME)} onBack={() => setStage(FiltrationStage.LANDING)} />}
-      {stage === FiltrationStage.WELCOME && <Registration onRegister={handleRegister} onStaffLogin={() => setStage(FiltrationStage.STAFF_PORTAL)} />}
+      {stage === FiltrationStage.MENTORSHIP && <MentorshipPage onBack={() => setStage(FiltrationStage.LANDING)} />}
+      {stage === FiltrationStage.INCUBATION_PROGRAM && <IncubationProgram onBack={() => setStage(FiltrationStage.LANDING)} onApply={() => startRegistration('STARTUP')} />}
+      {stage === FiltrationStage.MEMBERSHIPS && <MembershipsPage onBack={() => setStage(FiltrationStage.LANDING)} onSelect={() => startRegistration('STARTUP')} />}
 
-      {stage === FiltrationStage.PROJECT_EVALUATION && userProfile && (
-        <ProjectEvaluation 
-          profile={{ codeName: userProfile.startupName, projectStage: 'Idea', sector: userProfile.industry, goal: 'Validation', techLevel: 'Medium' }} 
-          initialText={userProfile.startupDescription}
-          onComplete={(res) => { setProjectEvaluation(res); setStage(FiltrationStage.NOMINATION_TEST); }}
-        />
-      )}
-
-      {stage === FiltrationStage.NOMINATION_TEST && (
-        <NominationTest 
-          onComplete={(res) => {
-            setNominationOutcome(res);
-            const result: FinalResult = {
-              score: res.totalScore,
-              leadershipStyle: res.category === 'DIRECT_ADMISSION' ? "Entrepreneur" : "Developing Visionary",
-              metrics: { readiness: res.totalScore * 0.8, analysis: res.totalScore * 0.9, tech: res.totalScore * 0.7, personality: 85, strategy: res.totalScore * 0.75, ethics: 95 },
-              projectEval: projectEvaluation || undefined,
-              isQualified: res.category === 'DIRECT_ADMISSION' || res.category === 'INTERVIEW',
-              badges: [],
-              recommendation: res.aiAnalysis
-            };
-            setFinalResult(result);
-            setStage(FiltrationStage.ASSESSMENT_RESULT);
-          }} 
-          onReject={(reason) => { alert(`Rejected: ${reason}`); setStage(FiltrationStage.LANDING); }}
+      {stage === FiltrationStage.DASHBOARD && currentUser && (
+        <DashboardHub 
+          user={currentUser} 
+          onLogout={() => { localStorage.removeItem('db_current_session'); setCurrentUser(null); setStage(FiltrationStage.LANDING); }} 
+          onNavigateToStage={setStage} 
         />
       )}
       
-      {stage === FiltrationStage.ASSESSMENT_RESULT && finalResult && (
-        <AssessmentResult result={finalResult} onContinue={() => {
-          const session = storageService.getCurrentSession();
-          if (session) storageService.updateStartupStatus(session.projectId, 'APPROVED');
-          hydrateSession();
-          setStage(FiltrationStage.DASHBOARD);
-        }} />
-      )}
-      
-      {stage === FiltrationStage.STAFF_PORTAL && <StaffPortal onBack={() => setStage(FiltrationStage.LANDING)} />}
-      
-      {stage === FiltrationStage.DASHBOARD && userProfile && (
-        <Dashboard 
-          user={userProfile} 
-          levels={levels} 
-          onSelectLevel={(id) => {
-            const lvl = levels.find(l => l.id === id);
-            if (lvl?.isLocked) return alert('Locked.');
-            setActiveLevelId(id); 
-            setStage(FiltrationStage.LEVEL_VIEW); 
-          }} 
-          onShowCertificate={() => setStage(FiltrationStage.CERTIFICATE)} 
-          onLogout={() => { localStorage.removeItem('db_current_session'); setActiveLevelId(null); setStage(FiltrationStage.LANDING); }} 
-          onOpenProAnalytics={() => setStage(FiltrationStage.PROJECT_BUILDER)}
-          onUpdateLevelUI={updateLevelUI}
-          onAISuggestIcons={handleAISuggestIcons}
-          lang={currentLang}
-          onLanguageChange={handleLanguageChange}
-        />
-      )}
-
-      {stage === FiltrationStage.LEVEL_VIEW && userProfile && activeLevelId && (
-        <LevelView 
-          level={levels.find(l => l.id === activeLevelId)!} 
-          user={userProfile} 
-          tasks={userTasks}
-          onSubmitTask={handleTaskSubmitFromView}
-          onComplete={() => handleLevelComplete(activeLevelId)} 
-          onBack={() => { setActiveLevelId(null); setStage(FiltrationStage.DASHBOARD); }}
-          onRequestMentorship={() => setStage(FiltrationStage.MENTORSHIP)}
-        />
-      )}
-
-      {stage === FiltrationStage.CERTIFICATE && userProfile && <Certificate user={userProfile} onClose={() => setStage(FiltrationStage.DASHBOARD)} />}
-
       <LegalPortal type={activeLegal} onClose={() => setActiveLegal(null)} />
     </div>
   );

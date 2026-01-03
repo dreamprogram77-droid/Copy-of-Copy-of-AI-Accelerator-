@@ -1,17 +1,14 @@
 
-import { UserRecord, StartupRecord, ProgressRecord, ActivityLogRecord, UserProfile, TaskRecord, TASKS_CONFIG, ServiceRequest, ProgramRating, Partner } from '../types';
+import { UserRecord, StartupRecord, UserProfile, TaskRecord, TASKS_CONFIG, PartnerProfile, PartnerMatchRequest, MatchScore, ServiceRequest } from '../types';
 
 const DB_KEYS = {
   USERS: 'db_users',
   STARTUPS: 'db_startups',
-  PROGRESS: 'db_progress',
+  PARTNERS: 'db_partners',
+  MATCH_REQUESTS: 'db_match_requests',
   TASKS: 'db_tasks',
-  SERVICES: 'db_service_requests',
-  LOGS: 'db_logs',
   SESSION: 'db_current_session',
-  TEMP_LEVEL_STATE: 'db_temp_level_',
-  LEVEL_CUSTOMIZATIONS: 'db_level_customs',
-  PROGRAM_RATINGS: 'db_program_ratings'
+  SERVICE_REQUESTS: 'db_service_requests'
 };
 
 export const storageService = {
@@ -19,36 +16,27 @@ export const storageService = {
     const uid = `u_${Date.now()}`;
     const newUser: UserRecord = {
       uid,
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      email: profile.email,
-      phone: profile.phone,
-      age: profile.age || 0,
-      birthDate: profile.birthDate || '',
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-      settings: { theme: 'blue', notifications: true },
-      founderBio: profile.founderBio || ''
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      email: profile.email || '',
+      role: 'STARTUP',
+      phone: profile.phone || '',
+      founderBio: profile.founderBio
     };
 
     const newStartup: StartupRecord = {
       projectId: `p_${Date.now()}`,
       ownerId: uid,
-      name: profile.startupName,
-      description: profile.startupDescription,
-      industry: profile.industry,
-      foundationYear: profile.foundationYear || new Date().getFullYear(),
-      foundersCount: profile.foundersCount || 1,
-      technologies: profile.technologies || '',
-      stage: 'Idea',
-      metrics: { readiness: 40, analysis: 40, tech: 40, personality: 50, strategy: 40, ethics: 90 },
-      aiClassification: 'Yellow',
-      aiOpinion: 'تحت التقييم',
+      ownerName: `${profile.firstName} ${profile.lastName}`,
+      name: profile.startupName || '',
+      description: profile.startupDescription || '',
+      industry: profile.industry || '',
+      currentTrack: 'Idea',
       status: 'PENDING',
-      startupBio: profile.startupBio || '',
-      website: profile.website || '',
-      linkedin: profile.linkedin || '',
-      partners: profile.partners || []
+      metrics: { readiness: 45, tech: 30, market: 40 },
+      aiOpinion: 'تحت المراجعة الاستراتيجية',
+      lastActivity: new Date().toISOString(),
+      partners: []
     };
 
     const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
@@ -58,106 +46,63 @@ export const storageService = {
     localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify([...startups, newStartup]));
     localStorage.setItem(DB_KEYS.SESSION, JSON.stringify({ uid, projectId: newStartup.projectId }));
 
-    const tasks = TASKS_CONFIG.map(t => ({ ...t, uid, status: t.levelId === 1 ? 'ASSIGNED' : 'LOCKED' }));
+    const tasks = TASKS_CONFIG.map(t => ({ ...t, uid, status: t.levelId === 1 ? 'ASSIGNED' : 'LOCKED' as any }));
     const allTasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
     localStorage.setItem(DB_KEYS.TASKS, JSON.stringify([...allTasks, ...tasks]));
 
     return { user: newUser, startup: newStartup };
   },
 
-  loginUser: (email: string): { user: UserRecord; startup: StartupRecord } | null => {
-    const users: UserRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-    const startups: StartupRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
+  registerAsPartner: (data: PartnerProfile) => {
+    const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
+    const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
     
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (!user) return null;
+    const newUser: UserRecord = {
+      uid: data.uid,
+      firstName: data.name.split(' ')[0],
+      lastName: data.name.split(' ').slice(1).join(' '),
+      email: data.email,
+      role: 'PARTNER',
+      phone: '',
+    };
 
-    const startup = startups.find(s => s.ownerId === user.uid);
-    if (!startup) return null;
-
-    localStorage.setItem(DB_KEYS.SESSION, JSON.stringify({ uid: user.uid, projectId: startup.projectId }));
-    
-    user.lastLogin = new Date().toISOString();
-    localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
-
-    const allTasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
-    const userHasTasks = allTasks.some((t: any) => t.uid === user.uid);
-    if (!userHasTasks) {
-      const newTasks = TASKS_CONFIG.map(t => ({ ...t, uid: user.uid, status: t.levelId === 1 ? 'ASSIGNED' : 'LOCKED' }));
-      localStorage.setItem(DB_KEYS.TASKS, JSON.stringify([...allTasks, ...newTasks]));
-    }
-
-    return { user, startup };
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify([...users, newUser]));
+    localStorage.setItem(DB_KEYS.PARTNERS, JSON.stringify([...partners, data]));
+    localStorage.setItem(DB_KEYS.SESSION, JSON.stringify({ uid: data.uid }));
   },
 
   updateUser: (uid: string, data: Partial<UserRecord>) => {
     const users: UserRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-    const index = users.findIndex(u => u.uid === uid);
-    if (index > -1) {
-      users[index] = { ...users[index], ...data };
-      localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
-    }
+    const updated = users.map(u => u.uid === uid ? { ...u, ...data } : u);
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify(updated));
   },
 
   updateStartup: (projectId: string, data: Partial<StartupRecord>) => {
     const startups: StartupRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
-    const index = startups.findIndex(s => s.projectId === projectId);
-    if (index > -1) {
-      startups[index] = { ...startups[index], ...data };
-      localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify(startups));
-    }
+    const updated = startups.map(s => s.projectId === projectId ? { ...s, ...data } : s);
+    localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify(updated));
   },
 
-  seedDemoAccount: (): string => {
-    const demoEmail = 'demo@bizdev.ai';
+  getAllPartners: (): PartnerProfile[] => {
+    const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
+    return partners;
+  },
+
+  getPartnerProfile: (uid: string): PartnerProfile | null => {
+    const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
+    return partners.find((p: any) => p.uid === uid) || null;
+  },
+
+  loginUser: (email: string): { user: UserRecord; startup?: StartupRecord } | null => {
     const users: UserRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (!user) return null;
+
     const startups: StartupRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
+    const startup = startups.find(s => s.ownerId === user.uid);
+    localStorage.setItem(DB_KEYS.SESSION, JSON.stringify({ uid: user.uid, projectId: startup?.projectId }));
     
-    if (users.some(u => u.email === demoEmail)) return demoEmail;
-
-    const uid = 'u_demo_123';
-    const newUser: UserRecord = {
-      uid,
-      firstName: 'رائد',
-      lastName: 'تجريبي',
-      email: demoEmail,
-      phone: '0500000000',
-      age: 30,
-      birthDate: '1994-01-01',
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-      settings: { theme: 'indigo', notifications: true },
-      founderBio: 'رائد أعمال شغوف بالتقنية والابتكار والتوسع العالمي.'
-    };
-
-    const newStartup: StartupRecord = {
-      projectId: 'p_demo_123',
-      ownerId: uid,
-      name: 'منصة زراعة ذكية (تجريبي)',
-      description: 'مشروع تجريبي لتحليل بيانات التربة باستخدام الذكاء الاصطناعي لتحسين جودة المحاصيل.',
-      industry: 'AgriTech',
-      foundationYear: 2024,
-      foundersCount: 2,
-      technologies: 'React, Node.js, TensorFlow',
-      stage: 'Prototype',
-      metrics: { readiness: 85, analysis: 78, tech: 92, personality: 88, strategy: 70, ethics: 95 },
-      aiClassification: 'Green',
-      aiOpinion: 'مشروع متميز ذو جدوى اقتصادية عالية.',
-      status: 'APPROVED',
-      startupBio: 'نهدف لتمكين المزارعين بأحدث تقنيات الذكاء الاصطناعي لزيادة الإنتاجية.',
-      website: 'https://smartfarm-demo.io',
-      linkedin: 'https://linkedin.com/company/smartfarm',
-      partners: [{ name: 'علي حسن', role: 'شريك تقني' }]
-    };
-
-    localStorage.setItem(DB_KEYS.USERS, JSON.stringify([...users, newUser]));
-    localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify([...startups, newStartup]));
-
-    const tasks = TASKS_CONFIG.map(t => ({ ...t, uid, status: t.levelId === 1 ? 'ASSIGNED' : 'LOCKED' }));
-    const allTasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
-    localStorage.setItem(DB_KEYS.TASKS, JSON.stringify([...allTasks, ...tasks]));
-
-    return demoEmail;
+    return { user, startup };
   },
 
   getCurrentSession: () => {
@@ -165,122 +110,58 @@ export const storageService = {
     return session ? JSON.parse(session) : null;
   },
 
-  saveProgramRating: (uid: string, rating: ProgramRating) => {
-    const ratings = JSON.parse(localStorage.getItem(DB_KEYS.PROGRAM_RATINGS) || '{}');
-    ratings[uid] = rating;
-    localStorage.setItem(DB_KEYS.PROGRAM_RATINGS, JSON.stringify(ratings));
-  },
-
-  getProgramRating: (uid: string): ProgramRating | null => {
-    const ratings = JSON.parse(localStorage.getItem(DB_KEYS.PROGRAM_RATINGS) || '{}');
-    return ratings[uid] || null;
-  },
-
-  saveLevelCustomization: (uid: string, levelId: number, customization: { icon?: string, customColor?: string }) => {
-    const customs = JSON.parse(localStorage.getItem(DB_KEYS.LEVEL_CUSTOMIZATIONS) || '{}');
-    if (!customs[uid]) customs[uid] = {};
-    customs[uid][levelId] = { ...customs[uid][levelId], ...customization };
-    localStorage.setItem(DB_KEYS.LEVEL_CUSTOMIZATIONS, JSON.stringify(customs));
-  },
-
-  getLevelCustomizations: (uid: string): Record<number, { icon: string, customColor: string }> => {
-    const customs = JSON.parse(localStorage.getItem(DB_KEYS.LEVEL_CUSTOMIZATIONS) || '{}');
-    return customs[uid] || {};
-  },
-
-  requestService: (uid: string, serviceId: string, packageId: string, details: string) => {
-    const requests = JSON.parse(localStorage.getItem(DB_KEYS.SERVICES) || '[]');
-    const newRequest: ServiceRequest = {
-      id: `req_${Date.now()}`,
-      uid,
-      serviceId,
-      packageId,
-      status: 'PENDING',
-      requestedAt: new Date().toISOString(),
-      details
-    };
-    localStorage.setItem(DB_KEYS.SERVICES, JSON.stringify([...requests, newRequest]));
-    return newRequest;
-  },
-
-  getUserServiceRequests: (uid: string): ServiceRequest[] => {
-    const requests = JSON.parse(localStorage.getItem(DB_KEYS.SERVICES) || '[]');
-    return requests.filter((r: any) => r.uid === uid);
-  },
-
   getUserTasks: (uid: string): TaskRecord[] => {
     const tasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
     return tasks.filter((t: any) => t.uid === uid);
   },
 
-  submitTask: (uid: string, taskId: string, submissionData: { content?: string, fileData?: string, fileName?: string }) => {
-    const tasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
-    const index = tasks.findIndex((t: any) => t.uid === uid && t.id === taskId);
-    if (index > -1) {
-      tasks[index].status = 'SUBMITTED';
-      tasks[index].submission = { 
-        ...submissionData,
-        submittedAt: new Date().toISOString() 
-      };
-      localStorage.setItem(DB_KEYS.TASKS, JSON.stringify(tasks));
-      
-      const currentLevelId = tasks[index].levelId;
-      storageService.updateProgress(uid, currentLevelId, { status: 'COMPLETED' });
-    }
-  },
-
-  unlockTaskForLevel: (uid: string, levelId: number) => {
-    const tasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
-    const index = tasks.findIndex((t: any) => t.uid === uid && t.levelId === levelId);
-    if (index > -1 && tasks[index].status === 'LOCKED') {
-      tasks[index].status = 'ASSIGNED';
-      localStorage.setItem(DB_KEYS.TASKS, JSON.stringify(tasks));
-    }
-  },
-
-  updateStartupStatus: (projectId: string, status: StartupRecord['status']) => {
-    const startups: StartupRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
-    const index = startups.findIndex(s => s.projectId === projectId);
-    if (index > -1) {
-      startups[index].status = status;
-      localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify(startups));
-    }
-  },
-
-  updateProgress: (uid: string, levelId: number, data: Partial<ProgressRecord>) => {
-    const progressList: ProgressRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.PROGRESS) || '[]');
-    const index = progressList.findIndex(p => p.uid === uid && p.levelId === levelId);
-    
-    if (index > -1) {
-      progressList[index] = { ...progressList[index], ...data };
-    } else {
-      progressList.push({
-        id: `prog_${Date.now()}`,
-        uid,
-        levelId,
-        status: 'AVAILABLE',
-        score: 0,
-        ...data
-      } as ProgressRecord);
-    }
-    
-    localStorage.setItem(DB_KEYS.PROGRESS, JSON.stringify(progressList));
-    if (data.status === 'COMPLETED') {
-      storageService.unlockTaskForLevel(uid, levelId + 1);
-    }
-  },
-
-  getUserProgress: (uid: string): ProgressRecord[] => {
-    const progressList = JSON.parse(localStorage.getItem(DB_KEYS.PROGRESS) || '[]');
-    return progressList.filter((p: any) => p.uid === uid);
-  },
-
   getAllStartups: (): StartupRecord[] => JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]'),
   getAllUsers: (): UserRecord[] => JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]'),
-  logAction: (uid: string, type: ActivityLogRecord['actionType'], metadata: string) => {
-    const logs = JSON.parse(localStorage.getItem(DB_KEYS.LOGS) || '[]');
-    const newLog = { logId: `log_${Date.now()}`, uid, actionType: type, metadata, timestamp: new Date().toISOString() };
-    localStorage.setItem(DB_KEYS.LOGS, JSON.stringify([newLog, ...logs].slice(0, 100)));
+  
+  getUserServiceRequests: (uid: string): ServiceRequest[] => {
+    const requests = JSON.parse(localStorage.getItem(DB_KEYS.SERVICE_REQUESTS) || '[]');
+    return requests.filter((r: any) => r.uid === uid);
   },
-  getAllLogs: (): ActivityLogRecord[] => JSON.parse(localStorage.getItem(DB_KEYS.LOGS) || '[]')
+
+  submitTask: (uid: string, taskId: string, submission: { fileData: string, fileName: string }) => {
+    const allTasks: TaskRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
+    const updatedTasks = allTasks.map(t => 
+      (t.uid === uid && t.id === taskId) 
+        ? { ...t, status: 'SUBMITTED' as const, submission: { ...submission, submittedAt: new Date().toISOString() } } 
+        : t
+    );
+    localStorage.setItem(DB_KEYS.TASKS, JSON.stringify(updatedTasks));
+  },
+
+  requestService: (uid: string, serviceId: string, packageId: string, details: string) => {
+    const requests = JSON.parse(localStorage.getItem(DB_KEYS.SERVICE_REQUESTS) || '[]');
+    const newRequest: ServiceRequest = {
+      id: `sr_${Date.now()}`,
+      uid,
+      serviceId,
+      packageId,
+      details,
+      status: 'PENDING',
+      requestedAt: new Date().toISOString()
+    };
+    localStorage.setItem(DB_KEYS.SERVICE_REQUESTS, JSON.stringify([...requests, newRequest]));
+  },
+
+  seedDemoAccount: (): string => {
+    const demoEmail = 'admin@bizdev.ai';
+    const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+    if (users.find((u: any) => u.email === demoEmail)) return demoEmail;
+    
+    const admin: UserRecord = {
+      uid: 'u_admin',
+      firstName: 'مدير',
+      lastName: 'الحاضنة',
+      email: demoEmail,
+      role: 'ADMIN',
+      phone: '0500000000'
+    };
+    
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify([...users, admin]));
+    return demoEmail;
+  }
 };
