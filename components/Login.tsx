@@ -19,12 +19,15 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack }) => {
     if (e) e.preventDefault();
     
     const finalEmail = targetEmail || email;
-    if (!finalEmail) return;
+    if (!finalEmail) {
+      setError('يرجى إدخال البريد الإلكتروني');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
-    // Simulate small delay
+    // Simulate small delay for UX feel
     setTimeout(() => {
       const result = storageService.loginUser(finalEmail);
       
@@ -48,113 +51,156 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack }) => {
         playErrorSound();
       }
       setIsLoading(false);
-    }, 1000);
+    }, 1200);
   };
 
   const handleDemoLogin = () => {
-    const demoEmail = storageService.seedDemoAccount();
-    setEmail(demoEmail);
-    setPassword('demo123');
-    handleSubmit(undefined, demoEmail);
+    setIsLoading(true);
+    setError(null);
+    playPositiveSound();
+
+    setTimeout(() => {
+      const demoEmail = storageService.seedDemoAccount();
+      setEmail(demoEmail);
+      setPassword('demo123');
+      const result = storageService.loginUser(demoEmail);
+      
+      if (result) {
+        const profile: UserProfile = {
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          email: result.user.email,
+          phone: result.user.phone,
+          startupName: result.startup.name,
+          startupDescription: result.startup.description,
+          industry: result.startup.industry,
+          name: `${result.user.firstName} ${result.user.lastName}`,
+          hasCompletedAssessment: result.startup.status === 'APPROVED'
+        };
+        onLoginSuccess(profile);
+      }
+      setIsLoading(false);
+    }, 800);
   };
 
   return (
     <div className="min-h-screen flex bg-slate-950 font-sans overflow-hidden text-white" dir="rtl">
-      <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 flex-col justify-center p-20">
-        <div className="absolute top-[-10%] right-[-10%] w-[120%] h-[120%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-600/10 via-transparent to-transparent opacity-50"></div>
-        <div className="relative z-10 space-y-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center border border-white/20 shadow-2xl">
-             <svg className="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+      <style>{`
+        .login-mesh {
+          background-image: radial-gradient(at 0% 0%, hsla(215, 98%, 61%, 0.1) 0px, transparent 50%),
+                            radial-gradient(at 100% 100%, hsla(215, 98%, 61%, 0.05) 0px, transparent 50%);
+        }
+      `}</style>
+      
+      {/* Visual Sidebar */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 flex-col justify-center p-20 border-l border-white/5 overflow-hidden">
+        <div className="absolute inset-0 login-mesh opacity-50"></div>
+        <div className="relative z-10 space-y-12">
+          <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center border border-white/20 shadow-2xl animate-float">
+             <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
-          <h1 className="text-6xl font-black leading-tight">عد إلينا مجدداً <br/><span className="text-blue-500">لإكمال مسارك.</span></h1>
-          <p className="text-xl text-slate-400 max-w-md">أنت الآن أقرب من أي وقت مضى لتحقيق رؤيتك الريادية. سجل دخولك لمتابعة الدروس وتحليل النتائج.</p>
+          <div className="space-y-6">
+            <h1 className="text-7xl font-black leading-tight tracking-tighter">أهلاً بك <br/><span className="text-blue-500">من جديد.</span></h1>
+            <p className="text-2xl text-slate-400 max-w-lg leading-relaxed font-medium">سجل دخولك لمتابعة نضج مشروعك الريادي، أو استكشف المنصة عبر الحساب التجريبي المخصص للزوار.</p>
+          </div>
         </div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-slate-950">
-        <div className="max-w-md w-full animate-fade-in-up">
-           <header className="mb-12">
-              <h2 className="text-4xl font-black text-white mb-4">تسجيل الدخول</h2>
-              <p className="text-slate-400 font-medium">أدخل بيانات الاعتماد الخاصة بك للوصول إلى لوحة التحكم.</p>
+      {/* Login Form Area */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-12 relative">
+        <div className="max-w-md w-full animate-fade-in-up space-y-12">
+           <header className="space-y-4">
+              <div className="lg:hidden w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl mb-6">
+                 <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              </div>
+              <h2 className="text-4xl font-black text-white tracking-tight">تسجيل الدخول</h2>
+              <p className="text-slate-500 font-medium text-lg">الوصول إلى بوابة التسريع الذكي</p>
            </header>
 
-           <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest pr-1">البريد الإلكتروني</label>
-                 <input 
-                   type="email" 
-                   required
-                   className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all text-white font-bold"
-                   placeholder="name@company.com"
-                   value={email}
-                   onChange={e => setEmail(e.target.value)}
-                 />
+           <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-3">
+                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest pr-2">البريد الإلكتروني</label>
+                 <div className="relative group">
+                    <input 
+                      type="email" 
+                      required
+                      className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[1.5rem] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-white font-bold text-lg placeholder-slate-700"
+                      placeholder="name@startup.ai"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                    />
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20 text-xl group-focus-within:opacity-100 transition-opacity">📧</span>
+                 </div>
               </div>
 
-              <div className="space-y-2">
-                 <div className="flex justify-between items-center pr-1">
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest">كلمة المرور</label>
-                    <button type="button" className="text-[10px] font-black text-blue-500 hover:text-blue-400">نسيت كلمة المرور؟</button>
+              <div className="space-y-3">
+                 <div className="flex justify-between items-center pr-2">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">كلمة المرور</label>
+                    <button type="button" className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest">نسيت السر؟</button>
                  </div>
-                 <input 
-                   type="password" 
-                   className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all text-white font-bold"
-                   placeholder="••••••••"
-                   value={password}
-                   onChange={e => setPassword(e.target.value)}
-                 />
+                 <div className="relative group">
+                    <input 
+                      type="password" 
+                      className="w-full px-6 py-5 bg-white/5 border border-white/10 rounded-[1.5rem] outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-white font-bold text-lg placeholder-slate-700"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                    />
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 opacity-20 text-xl group-focus-within:opacity-100 transition-opacity">🔑</span>
+                 </div>
               </div>
 
               {error && (
-                <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 animate-shake">
-                   <span className="text-xl">⚠️</span>
+                <div className="p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-4 animate-shake">
+                   <div className="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center text-white font-bold">!</div>
                    <p className="text-sm font-bold text-rose-400">{error}</p>
                 </div>
               )}
 
-              <div className="pt-4 space-y-4">
+              <div className="pt-4 space-y-6">
                  <button 
                    type="submit" 
                    disabled={isLoading}
-                   className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.8rem] font-black text-xl shadow-2xl shadow-blue-900/20 transition-all transform active:scale-95 flex items-center justify-center gap-4 group disabled:opacity-50"
+                   className="w-full py-6 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-black text-xl shadow-2xl shadow-blue-900/30 transition-all transform active:scale-95 flex items-center justify-center gap-4 group disabled:opacity-50"
                  >
                    {isLoading ? (
-                     <div className="w-6 h-6 border-[3px] border-white/30 border-t-white rounded-full animate-spin"></div>
+                     <div className="w-6 h-6 border-[3.5px] border-white/20 border-t-white rounded-full animate-spin"></div>
                    ) : (
                      <>
                         <span>دخول للمسرعة</span>
-                        <svg className="w-6 h-6 transform rotate-180 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                        <svg className="w-6 h-6 transform rotate-180 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                      </>
                    )}
                  </button>
 
-                 <div className="relative py-4">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-                    <div className="relative flex justify-center text-xs font-bold uppercase"><span className="bg-slate-950 px-4 text-slate-500 tracking-widest">أو استكشف كضيف</span></div>
+                 <div className="relative py-6">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+                    <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em]"><span className="bg-slate-950 px-6 text-slate-600">أو استكشف كزائر</span></div>
                  </div>
 
                  <button 
                    type="button" 
                    onClick={handleDemoLogin}
                    disabled={isLoading}
-                   className="w-full py-5 bg-white/5 hover:bg-white/10 border-2 border-dashed border-white/20 text-blue-400 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-3 active:scale-95"
+                   className="w-full py-5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 hover:from-blue-500/20 hover:to-indigo-500/20 border-2 border-dashed border-blue-500/30 text-blue-400 rounded-2xl font-black text-base transition-all flex items-center justify-center gap-4 active:scale-95 group"
                  >
-                   <span>👀 الدخول بحساب تجريبي</span>
-                   <span className="text-[10px] bg-blue-500/20 px-2 py-0.5 rounded text-blue-300">بدون تسجيل</span>
+                   <span className="text-2xl group-hover:scale-125 transition-transform">👁️</span>
+                   <span>الدخول بالحساب التجريبي</span>
+                   <span className="text-[10px] bg-blue-500/20 px-3 py-1 rounded-full text-blue-300 font-black uppercase tracking-widest">Instant Access</span>
                  </button>
 
                  <button 
                    type="button" 
                    onClick={onBack}
-                   className="w-full py-4 text-slate-500 hover:text-white font-bold text-sm transition-colors"
+                   className="w-full py-4 text-slate-500 hover:text-white font-black text-xs uppercase tracking-widest transition-colors"
                  >
                    العودة للرئيسية
                  </button>
               </div>
            </form>
 
-           <footer className="mt-16 text-center border-t border-white/5 pt-8">
-              <p className="text-slate-500 text-xs">ليس لديك حساب؟ <button onClick={onBack} className="text-blue-500 font-black hover:underline">سجل مشروعك الآن</button></p>
+           <footer className="pt-20 text-center border-t border-white/5">
+              <p className="text-slate-600 text-sm font-bold">ليس لديك حساب؟ <button onClick={onBack} className="text-blue-500 font-black hover:text-blue-400 transition-colors">سجل مشروعك الآن</button></p>
            </footer>
         </div>
       </div>

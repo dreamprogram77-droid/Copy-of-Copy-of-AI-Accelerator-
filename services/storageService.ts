@@ -11,7 +11,7 @@ const DB_KEYS = {
   SESSION: 'db_current_session',
   TEMP_LEVEL_STATE: 'db_temp_level_',
   LEVEL_CUSTOMIZATIONS: 'db_level_customs',
-  PROGRAM_RATINGS: 'db_program_ratings' // مفتاح جديد
+  PROGRAM_RATINGS: 'db_program_ratings'
 };
 
 export const storageService = {
@@ -97,6 +97,8 @@ export const storageService = {
   seedDemoAccount: (): string => {
     const demoEmail = 'demo@bizdev.ai';
     const users: UserRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+    const startups: StartupRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
+    
     if (users.some(u => u.email === demoEmail)) return demoEmail;
 
     const uid = 'u_demo_123';
@@ -116,20 +118,20 @@ export const storageService = {
     const newStartup: StartupRecord = {
       projectId: 'p_demo_123',
       ownerId: uid,
-      name: 'منصة زراعة ذكية',
-      description: 'مشروع تجريبي لتحليل بيانات التربة.',
+      name: 'منصة زراعة ذكية (تجريبي)',
+      description: 'مشروع تجريبي لتحليل بيانات التربة باستخدام الذكاء الاصطناعي لتحسين جودة المحاصيل.',
       industry: 'AgriTech',
       foundationYear: 2024,
       foundersCount: 2,
-      technologies: 'React, Node.js',
+      technologies: 'React, Node.js, TensorFlow',
       stage: 'Prototype',
       metrics: { readiness: 85, analysis: 78, tech: 92, personality: 88, strategy: 70, ethics: 95 },
       aiClassification: 'Green',
-      aiOpinion: 'مشروع متميز.',
+      aiOpinion: 'مشروع متميز ذو جدوى اقتصادية عالية.',
       status: 'APPROVED'
     };
 
-    const startups = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify([...users, newUser]));
     localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify([...startups, newStartup]));
 
     const tasks = TASKS_CONFIG.map(t => ({ ...t, uid, status: t.levelId === 1 ? 'ASSIGNED' : 'LOCKED' }));
@@ -144,7 +146,6 @@ export const storageService = {
     return session ? JSON.parse(session) : null;
   },
 
-  // --- Program Rating Operations ---
   saveProgramRating: (uid: string, rating: ProgramRating) => {
     const ratings = JSON.parse(localStorage.getItem(DB_KEYS.PROGRAM_RATINGS) || '{}');
     ratings[uid] = rating;
@@ -156,7 +157,6 @@ export const storageService = {
     return ratings[uid] || null;
   },
 
-  // --- Level Customization Operations ---
   saveLevelCustomization: (uid: string, levelId: number, customization: { icon?: string, customColor?: string }) => {
     const customs = JSON.parse(localStorage.getItem(DB_KEYS.LEVEL_CUSTOMIZATIONS) || '{}');
     if (!customs[uid]) customs[uid] = {};
@@ -169,7 +169,6 @@ export const storageService = {
     return customs[uid] || {};
   },
 
-  // --- Service Request Operations ---
   requestService: (uid: string, serviceId: string, packageId: string, details: string) => {
     const requests = JSON.parse(localStorage.getItem(DB_KEYS.SERVICES) || '[]');
     const newRequest: ServiceRequest = {
@@ -190,7 +189,6 @@ export const storageService = {
     return requests.filter((r: any) => r.uid === uid);
   },
 
-  // --- Task Operations ---
   getUserTasks: (uid: string): TaskRecord[] => {
     const tasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
     return tasks.filter((t: any) => t.uid === uid);
