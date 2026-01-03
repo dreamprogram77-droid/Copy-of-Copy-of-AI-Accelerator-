@@ -12,39 +12,48 @@ const DB_KEYS = {
 };
 
 export const storageService = {
-  registerUser: (profile: UserProfile): { user: UserRecord; startup: StartupRecord } => {
-    const uid = `u_${Date.now()}`;
+  registerUser: (profile: UserProfile): { user: UserRecord; startup?: StartupRecord } => {
+    const uid = profile.uid || `u_${Date.now()}`;
+    const role = profile.role || 'STARTUP';
+
     const newUser: UserRecord = {
       uid,
-      firstName: profile.firstName || '',
-      lastName: profile.lastName || '',
-      email: profile.email || '',
-      role: 'STARTUP',
-      phone: profile.phone || '',
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      email: profile.email,
+      role: role,
+      phone: profile.phone,
       founderBio: profile.founderBio
     };
 
-    const newStartup: StartupRecord = {
-      projectId: `p_${Date.now()}`,
-      ownerId: uid,
-      ownerName: `${profile.firstName} ${profile.lastName}`,
-      name: profile.startupName || '',
-      description: profile.startupDescription || '',
-      industry: profile.industry || '',
-      currentTrack: 'Idea',
-      status: 'PENDING',
-      metrics: { readiness: 45, tech: 30, market: 40 },
-      aiOpinion: 'تحت المراجعة الاستراتيجية',
-      lastActivity: new Date().toISOString(),
-      partners: []
-    };
+    let newStartup: StartupRecord | undefined;
+
+    if (role === 'STARTUP') {
+      newStartup = {
+        projectId: `p_${Date.now()}`,
+        ownerId: uid,
+        ownerName: `${profile.firstName} ${profile.lastName}`,
+        name: profile.startupName || '',
+        description: profile.startupDescription || '',
+        industry: profile.industry || '',
+        currentTrack: 'Idea',
+        status: 'PENDING',
+        metrics: { readiness: 45, tech: 30, market: 40 },
+        aiOpinion: 'تحت المراجعة الاستراتيجية',
+        lastActivity: new Date().toISOString(),
+        partners: []
+      };
+      const startups = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
+      localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify([...startups, newStartup]));
+    }
 
     const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-    const startups = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
-    
     localStorage.setItem(DB_KEYS.USERS, JSON.stringify([...users, newUser]));
-    localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify([...startups, newStartup]));
-    localStorage.setItem(DB_KEYS.SESSION, JSON.stringify({ uid, projectId: newStartup.projectId }));
+    
+    // Save detailed profile separately to preserve all the new fields
+    localStorage.setItem(`profile_${uid}`, JSON.stringify(profile));
+    
+    localStorage.setItem(DB_KEYS.SESSION, JSON.stringify({ uid, projectId: newStartup?.projectId }));
 
     const tasks = TASKS_CONFIG.map(t => ({ ...t, uid, status: t.levelId === 1 ? 'ASSIGNED' : 'LOCKED' as any }));
     const allTasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
@@ -53,6 +62,7 @@ export const storageService = {
     return { user: newUser, startup: newStartup };
   },
 
+  // ... (keeping other methods same for now)
   registerAsPartner: (data: PartnerProfile) => {
     const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
     const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
@@ -83,11 +93,7 @@ export const storageService = {
     localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify(updated));
   },
 
-  getAllPartners: (): PartnerProfile[] => {
-    const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
-    return partners;
-  },
-
+  getAllPartners: (): PartnerProfile[] => JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]'),
   getPartnerProfile: (uid: string): PartnerProfile | null => {
     const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
     return partners.find((p: any) => p.uid === uid) || null;
