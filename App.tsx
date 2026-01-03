@@ -87,6 +87,20 @@ function App() {
     hydrateSession();
   };
 
+  const handleTransformToPartner = () => {
+    if (!currentUser) return;
+    
+    // 1. Update user role in storage
+    storageService.updateUser(currentUser.uid, { role: 'PARTNER' });
+    
+    // 2. Clear startup application so they don't get redirected back here
+    storageService.updateStartupApplication(currentUser.startupId!, 'NEEDS_COMPLETION', 0, 'User transformed to Partner track');
+    
+    // 3. Hydrate and Navigate to Partner Dashboard
+    hydrateSession();
+    setStage(FiltrationStage.DASHBOARD);
+  };
+
   return (
     <div className={`antialiased ${t.dir === 'rtl' ? 'text-right' : 'text-left'}`} dir={t.dir}>
       {stage === FiltrationStage.LANDING && (
@@ -120,6 +134,7 @@ function App() {
           startup={storageService.getAllStartups().find(s => s.projectId === currentUser.startupId)!} 
           onContinue={() => setStage(FiltrationStage.DASHBOARD)}
           onRetry={() => setStage(FiltrationStage.INCUBATION_APPLY)}
+          onJoinAsPartner={handleTransformToPartner}
         />
       )}
 

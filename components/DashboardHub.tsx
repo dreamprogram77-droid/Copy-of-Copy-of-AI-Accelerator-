@@ -1,6 +1,5 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
-import { UserRole, UserProfile, LevelData, TaskRecord, ProgramRating, ACADEMY_BADGES, FiltrationStage } from '../types';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { UserRole, UserProfile, LevelData, TaskRecord, ProgramRating, ACADEMY_BADGES, FiltrationStage, SECTORS } from '../types';
 import { playPositiveSound, playCelebrationSound } from '../services/audioService';
 import { storageService } from '../services/storageService';
 import { LevelView } from './LevelView';
@@ -14,16 +13,22 @@ interface DashboardHubProps {
 }
 
 export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNavigateToStage }) => {
-  const [activeTab, setActiveTab] = useState<'roadmap' | 'tasks' | 'evaluation' | 'settings'>('roadmap');
+  const [activeTab, setActiveTab] = useState<'roadmap' | 'tasks' | 'profile' | 'evaluation' | 'settings'>('roadmap');
   const [roadmap, setRoadmap] = useState<LevelData[]>([]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [selectedLevel, setSelectedLevel] = useState<LevelData | null>(null);
   const [existingRating, setExistingRating] = useState<ProgramRating | null>(null);
   const [earnedBadgeIds, setEarnedBadgeIds] = useState<string[]>([]);
+  
+  // Profile State
+  const [profileData, setProfileData] = useState<UserProfile>(user);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadData = () => {
-      setRoadmap(storageService.getCurrentRoadmap(user.uid));
+      const currentRoadmap = storageService.getCurrentRoadmap(user.uid);
+      setRoadmap(currentRoadmap);
       setTasks(storageService.getUserTasks(user.uid));
       setExistingRating(storageService.getProgramRating(user.uid));
       
@@ -32,29 +37,75 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
       if (currentUser) {
         setEarnedBadgeIds(currentUser.earnedBadges || []);
       }
+
+      const startups = storageService.getAllStartups();
+      const startup = startups.find(s => s.projectId === user.startupId);
+      if (startup && currentUser) {
+        setProfileData({
+          ...currentUser,
+          startupName: startup.name,
+          startupDescription: startup.description,
+          industry: startup.industry,
+          website: startup.website,
+          linkedin: startup.linkedin,
+          startupBio: startup.startupBio,
+          logo: localStorage.getItem(`logo_${user.uid}`) || undefined
+        });
+      }
     };
     loadData();
-    const interval = setInterval(loadData, 3000); 
-    return () => clearInterval(interval);
-  }, [user.uid]);
+  }, [user.uid, user.startupId, activeTab]);
 
   const stats = useMemo(() => {
     const completed = roadmap.filter(l => l.isCompleted).length;
     const progress = Math.round((completed / roadmap.length) * 100);
-    
-    // Calculate aggregate AI Score
     const scoredTasks = tasks.filter(t => t.status === 'APPROVED' && t.aiReview?.score);
     const totalScore = scoredTasks.reduce((sum, t) => sum + (t.aiReview?.score || 0), 0);
     const avgScore = scoredTasks.length > 0 ? Math.round(totalScore / scoredTasks.length) : 0;
-    
     return { progress, avgScore, completedCount: completed };
   }, [roadmap, tasks]);
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setProfileData(prev => ({ ...prev, logo: base64 }));
+        localStorage.setItem(`logo_${user.uid}`, base64);
+        playPositiveSound();
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProfile = () => {
+    setIsSaving(true);
+    storageService.updateUser(user.uid, {
+      firstName: profileData.firstName,
+      lastName: profileData.lastName,
+      email: profileData.email,
+      phone: profileData.phone
+    });
+    storageService.updateStartup(user.startupId!, {
+      name: profileData.startupName,
+      description: profileData.startupDescription,
+      industry: profileData.industry,
+      website: profileData.website,
+      linkedin: profileData.linkedin,
+      startupBio: profileData.startupBio
+    });
+    
+    setTimeout(() => {
+      setIsSaving(false);
+      playCelebrationSound();
+    }, 800);
+  };
+
+  // Fix: Defined handleEvaluationSubmit to persist the program rating and update local state
   const handleEvaluationSubmit = (rating: ProgramRating) => {
     storageService.saveProgramRating(user.uid, rating);
     setExistingRating(rating);
-    setActiveTab('roadmap');
-    playPositiveSound();
   };
 
   if (selectedLevel) {
@@ -69,10 +120,13 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
     );
   }
 
+  const inputClass = "w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-blue-600 focus:bg-white transition-all font-bold text-sm text-slate-900";
+  const labelClass = "block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 pr-2";
+
   return (
     <div className="min-h-screen bg-slate-50 flex" dir="rtl">
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-l border-slate-200 flex flex-col shadow-sm">
+      <aside className="w-72 bg-white border-l border-slate-200 flex flex-col shadow-sm sticky top-0 h-screen">
         <div className="p-8 border-b border-slate-100">
            <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-600/20">BD</div>
@@ -80,7 +134,7 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
            </div>
            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">المسار النشط</p>
-              <p className="text-xs font-bold text-slate-900 truncate">{user.startupName}</p>
+              <p className="text-xs font-bold text-slate-900 truncate">{profileData.startupName || 'مشروع ناشئ'}</p>
               <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
                  <div className="bg-blue-600 h-full transition-all duration-1000" style={{width: `${stats.progress}%`}}></div>
               </div>
@@ -91,6 +145,7 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
            {[
              { id: 'roadmap', label: 'خارطة الطريق', icon: '🛣️' },
              { id: 'tasks', label: 'مركز المخرجات', icon: '📥' },
+             { id: 'profile', label: 'ملف الشركة', icon: '🏢' },
              { id: 'evaluation', label: 'تقييم البرنامج', icon: '⭐' },
              { id: 'settings', label: 'الإعدادات', icon: '⚙️' }
            ].map(item => (
@@ -119,12 +174,24 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
               <h2 className="text-4xl font-black text-slate-900 tracking-tight">
                 {activeTab === 'roadmap' ? 'منهج التسريع المكثف' : 
                  activeTab === 'tasks' ? 'تسليم المخرجات' : 
+                 activeTab === 'profile' ? 'ملف الشركة' :
                  activeTab === 'evaluation' ? 'تقييم التجربة الريادية' : 'إعدادات الحساب'}
               </h2>
-              <p className="text-slate-500 font-medium mt-1">أهلاً بك، {user.firstName}. إجمالي تقييم أداءك: <span className="text-blue-600 font-black">{stats.avgScore}%</span></p>
+              <p className="text-slate-500 font-medium mt-1">
+                {activeTab === 'profile' ? 'إدارة الهوية الرقمية لمشروعك' : `أهلاً بك، ${user.firstName}. إجمالي تقييم أداءك: ${stats.avgScore}%`}
+              </p>
            </div>
            
            <div className="flex gap-3 items-center">
+              {activeTab === 'profile' && (
+                <button 
+                  onClick={handleSaveProfile} 
+                  disabled={isSaving}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-xl font-black text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                </button>
+              )}
               <div className="px-4 py-2 bg-white border border-slate-100 rounded-2xl shadow-sm">
                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center mb-1">التقييم العام</p>
                  <p className={`text-xl font-black text-center ${stats.avgScore >= 90 ? 'text-emerald-500' : 'text-blue-600'}`}>{stats.avgScore}%</p>
@@ -148,23 +215,167 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
            </div>
         </header>
 
-        {/* Qualification Banner for Elite Admission */}
-        {stats.avgScore >= 90 && stats.completedCount >= 1 && (
-          <div className="mb-12 p-8 bg-gradient-to-r from-emerald-600 to-teal-500 rounded-[3rem] text-white shadow-2xl relative overflow-hidden animate-fade-in group">
-             <div className="absolute top-[-20px] left-[-20px] text-9xl opacity-10 group-hover:rotate-12 transition-transform duration-1000">💎</div>
-             <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                <div className="space-y-2">
-                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/30 mb-2">Elite Qualification Unlocked</div>
-                   <h3 className="text-3xl font-black">أنت مؤهل للانتقال إلى مسار الاستثمار!</h3>
-                   <p className="text-emerald-50 font-medium text-lg max-w-2xl">بناءً على نتائجك الاستثنائية (تجاوزت ٩٠٪)، قمنا بترشيحك لخدمة الانضمام إلى مسرعة الأعمال المباشرة (Direct In-Person/Pro Hybrid).</p>
-                </div>
-                <button 
-                  onClick={() => { playCelebrationSound(); onNavigateToStage(FiltrationStage.INCUBATION_PROGRAM); }}
-                  className="px-10 py-5 bg-white text-emerald-600 rounded-2xl font-black text-sm shadow-xl hover:scale-105 active:scale-95 transition-all"
-                >
-                   اطلب الانضمام للمسرعة الآن
-                </button>
-             </div>
+        {activeTab === 'profile' && (
+          <div className="max-w-4xl mx-auto w-full space-y-10 animate-fade-up pb-20">
+            {/* Company Basic Details Section */}
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-10">
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">🏢</div>
+                  <h3 className="text-2xl font-black text-slate-900">تفاصيل الشركة</h3>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                  {/* Logo Upload Column */}
+                  <div className="md:col-span-1 flex flex-col items-center gap-6">
+                     <label className={labelClass}>شعار الشركة</label>
+                     <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-48 h-48 rounded-[3rem] border-4 border-dashed border-slate-100 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all group relative overflow-hidden"
+                     >
+                        {profileData.logo ? (
+                          <img src={profileData.logo} className="w-full h-full object-cover" alt="Logo" />
+                        ) : (
+                          <span className="text-4xl opacity-20">🖼️</span>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                           <span className="text-white text-[10px] font-black uppercase">تحديث الصورة</span>
+                        </div>
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                     </div>
+                     <p className="text-[10px] font-bold text-slate-400">رفع صورة للشركة</p>
+                  </div>
+
+                  {/* Inputs Column */}
+                  <div className="md:col-span-2 space-y-8">
+                     <div className="space-y-2">
+                        <label className={labelClass}>اسم الشركة</label>
+                        <input 
+                           className={inputClass} 
+                           value={profileData.startupName} 
+                           onChange={e => setProfileData({...profileData, startupName: e.target.value})} 
+                        />
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                           <label className={labelClass}>البريد الإلكتروني</label>
+                           <input 
+                              type="email" 
+                              className={inputClass} 
+                              value={profileData.email} 
+                              onChange={e => setProfileData({...profileData, email: e.target.value})} 
+                           />
+                        </div>
+                        <div className="space-y-2">
+                           <label className={labelClass}>رقم الجوال</label>
+                           <input 
+                              className={inputClass} 
+                              value={profileData.phone} 
+                              onChange={e => setProfileData({...profileData, phone: e.target.value})} 
+                           />
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            {/* Specialization Section */}
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">🎯</div>
+                  <h3 className="text-2xl font-black text-slate-900">تخصص الشركة</h3>
+               </div>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                     <label className={labelClass}>القطاع الأساسي</label>
+                     <select 
+                        className={inputClass} 
+                        value={profileData.industry} 
+                        onChange={e => setProfileData({...profileData, industry: e.target.value})}
+                     >
+                        <option value="Artificial Intelligence (AI)">الذكاء الإصطناعي - Artificial Intelligence (AI)</option>
+                        {SECTORS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                     </select>
+                  </div>
+                  <div className="space-y-2">
+                     <label className={labelClass}>وصف قصير</label>
+                     <input 
+                        className={inputClass} 
+                        placeholder="جملة واحدة تصف مشروعك..."
+                        value={profileData.startupDescription} 
+                        onChange={e => setProfileData({...profileData, startupDescription: e.target.value})} 
+                     />
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                     <label className={labelClass}>الموقع الالكتروني</label>
+                     <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xs">https://</span>
+                        <input 
+                           className={inputClass + " pl-16"} 
+                           placeholder="www.company.com"
+                           value={profileData.website?.replace('https://', '')} 
+                           onChange={e => setProfileData({...profileData, website: 'https://' + e.target.value})} 
+                        />
+                     </div>
+                  </div>
+               </div>
+               <div className="pt-4 flex justify-end">
+                  <button onClick={handleSaveProfile} className="text-blue-600 font-black text-xs hover:underline uppercase tracking-widest">حفظ التغييرات</button>
+               </div>
+            </div>
+
+            {/* Social Media Section */}
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">🌐</div>
+                  <h3 className="text-2xl font-black text-slate-900">الشبكات الاجتماعية</h3>
+               </div>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                     <label className={labelClass}>LinkedIn</label>
+                     <input 
+                        className={inputClass} 
+                        placeholder="رابط الملف الشخصي"
+                        value={profileData.linkedin} 
+                        onChange={e => setProfileData({...profileData, linkedin: e.target.value})} 
+                     />
+                  </div>
+                  <div className="space-y-2">
+                     <label className={labelClass}>X (Twitter)</label>
+                     <input className={inputClass} placeholder="@username" />
+                  </div>
+               </div>
+               <div className="pt-4 flex justify-end">
+                  <button onClick={handleSaveProfile} className="text-blue-600 font-black text-xs hover:underline uppercase tracking-widest">حفظ التغييرات</button>
+               </div>
+            </div>
+
+            {/* Detailed Description Section */}
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center text-xl">📝</div>
+                  <h3 className="text-2xl font-black text-slate-900">وصف مفصل</h3>
+               </div>
+               <div className="space-y-2">
+                  <label className={labelClass}>نبذة عن رؤية وأهداف الشركة</label>
+                  <textarea 
+                     className={inputClass + " h-64 resize-none leading-relaxed"} 
+                     placeholder="يرجى كتابة النص هنا..."
+                     value={profileData.startupBio} 
+                     onChange={e => setProfileData({...profileData, startupBio: e.target.value})} 
+                  />
+               </div>
+               <div className="pt-4">
+                  <button 
+                    onClick={handleSaveProfile} 
+                    disabled={isSaving}
+                    className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-black transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                     {isSaving ? 'جاري الحفظ...' : 'حفظ'}
+                  </button>
+               </div>
+            </div>
           </div>
         )}
 
@@ -203,7 +414,6 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
           </div>
         )}
 
-        {/* Other tabs remain unchanged */}
         {activeTab === 'tasks' && (
           <div className="space-y-6 animate-fade-up max-w-4xl">
              {tasks.map(task => (
