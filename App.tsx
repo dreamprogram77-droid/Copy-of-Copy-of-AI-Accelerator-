@@ -240,4 +240,27 @@ function App() {
             setStage(FiltrationStage.LEVEL_VIEW); 
           }} 
           onShowCertificate={() => setStage(FiltrationStage.CERTIFICATE)} 
-          onLogout={() => { localStorage.removeItem('db_current_session'); setActiveLevelId
+          onLogout={() => { localStorage.removeItem('db_current_session'); setActiveLevelId(null); setStage(FiltrationStage.LANDING); }} 
+          onOpenProAnalytics={() => setStage(FiltrationStage.PROJECT_BUILDER)}
+          onUpdateLevelUI={updateLevelUI}
+        />
+      )}
+
+      {stage === FiltrationStage.LEVEL_VIEW && userProfile && activeLevelId && (
+        <LevelView 
+          level={levels.find(l => l.id === activeLevelId)!} 
+          user={userProfile} 
+          onComplete={() => handleLevelComplete(activeLevelId)} 
+          onBack={() => { setActiveLevelId(null); setStage(FiltrationStage.DASHBOARD); }}
+          onRequestMentorship={() => setStage(FiltrationStage.MENTORSHIP)}
+        />
+      )}
+
+      {stage === FiltrationStage.CERTIFICATE && userProfile && <Certificate user={userProfile} onClose={() => setStage(FiltrationStage.DASHBOARD)} />}
+
+      <LegalPortal type={activeLegal} onClose={() => setActiveLegal(null)} />
+    </div>
+  );
+}
+
+export default App;

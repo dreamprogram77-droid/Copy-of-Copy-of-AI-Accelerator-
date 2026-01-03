@@ -4,12 +4,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>مسرعة الأعمال الافتراضية</title>
+    <title>مسرعة الأعمال الافتراضية | مستقبل الريادة</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans+Arabic:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
-        /* Primary Palette */
+        /* Primary Palette - AI Blue */
         --primary-50: #eff6ff;
         --primary-100: #dbeafe;
         --primary-200: #bfdbfe;
@@ -37,9 +37,10 @@
       }
 
       body {
-        font-family: 'Amiri', serif;
+        font-family: 'IBM+Plex+Sans+Arabic', 'Amiri', serif;
         background-color: var(--slate-950);
         color: var(--slate-50);
+        scroll-behavior: smooth;
       }
 
       .bg-mesh {
@@ -47,13 +48,13 @@
         background-image: 
           radial-gradient(at 40% 20%, hsla(215,98%,61%,0.15) 0px, transparent 50%),
           radial-gradient(at 80% 0%, hsla(189,100%,56%,0.1) 0px, transparent 50%),
-          radial-gradient(at 0% 50%, hsla(340,100%,76%,0.1) 0px, transparent 50%);
+          radial-gradient(at 0% 50%, hsla(340,100%,76%,0.08) 0px, transparent 50%);
         background-attachment: fixed;
       }
       
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
         background: transparent;
@@ -61,53 +62,50 @@
       ::-webkit-scrollbar-thumb {
         background: var(--slate-800);
         border-radius: 10px;
-        border: 2px solid var(--slate-950);
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: var(--slate-700);
+        background: var(--primary-600);
       }
+
+      @keyframes fade-in-up {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in-up { animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      
+      .glass {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      
+      .shimmer {
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+      }
+      @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
     </style>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Amiri', 'serif'],
+              sans: ['IBM+Plex+Sans+Arabic', 'Amiri', 'serif'],
+              serif: ['Amiri', 'serif'],
             },
             colors: {
               blue: {
-                50: 'var(--primary-50)',
-                100: 'var(--primary-100)',
-                200: 'var(--primary-200)',
-                300: 'var(--primary-300)',
-                400: 'var(--primary-400)',
-                500: 'var(--primary-500)',
-                600: 'var(--primary-600)',
-                700: 'var(--primary-700)',
-                800: 'var(--primary-800)',
-                900: 'var(--primary-900)',
-                950: 'var(--primary-950)',
+                50: 'var(--primary-50)', 100: 'var(--primary-100)', 200: 'var(--primary-200)',
+                300: 'var(--primary-300)', 400: 'var(--primary-400)', 500: 'var(--primary-500)',
+                600: 'var(--primary-600)', 700: 'var(--primary-700)', 800: 'var(--primary-800)',
+                900: 'var(--primary-900)', 950: 'var(--primary-950)',
               },
               slate: {
-                50: 'var(--slate-50)',
-                100: 'var(--slate-100)',
-                200: 'var(--slate-200)',
-                300: 'var(--slate-300)',
-                400: 'var(--slate-400)',
-                500: 'var(--slate-500)',
-                600: 'var(--slate-600)',
-                700: 'var(--slate-700)',
-                800: 'var(--slate-800)',
-                900: 'var(--slate-900)',
-                950: 'var(--slate-950)',
-              },
-              primary: {
-                50: 'var(--primary-50)',
-                100: 'var(--primary-100)',
-                500: 'var(--primary-500)',
-                600: 'var(--primary-600)',
-                700: 'var(--primary-700)',
-                900: 'var(--primary-900)',
+                50: 'var(--slate-50)', 100: 'var(--slate-100)', 200: 'var(--slate-200)',
+                300: 'var(--slate-300)', 400: 'var(--slate-400)', 500: 'var(--slate-500)',
+                600: 'var(--slate-600)', 700: 'var(--slate-700)', 800: 'var(--slate-800)',
+                900: 'var(--slate-900)', 950: 'var(--slate-950)',
               }
             }
           }
@@ -129,7 +127,7 @@
 }
 </script>
 </head>
-  <body class="bg-mesh text-slate-100 antialiased selection:bg-blue-500/30 selection:text-white">
+  <body class="bg-mesh text-slate-100 antialiased selection:bg-blue-500/30 selection:text-white overflow-x-hidden">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

@@ -85,6 +85,15 @@ export const storageService = {
     return { user, startup };
   },
 
+  updateUser: (uid: string, data: Partial<UserRecord>) => {
+    const users: UserRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
+    const index = users.findIndex(u => u.uid === uid);
+    if (index > -1) {
+      users[index] = { ...users[index], ...data };
+      localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
+    }
+  },
+
   seedDemoAccount: (): string => {
     const demoEmail = 'demo@bizdev.ai';
     const users: UserRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
