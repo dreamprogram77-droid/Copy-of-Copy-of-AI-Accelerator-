@@ -56,20 +56,9 @@ function App() {
           industry: startup?.industry || '',
         });
         
-        // Logical Routing Based on Incubation Status
-        if (userRec.role === 'STARTUP' && startup) {
-          if (startup.status === 'PENDING') {
-            // New Registration -> Show Official Join Request Form
-            setStage(FiltrationStage.INCUBATION_APPLY);
-          } else if (startup.status === 'APPROVED') {
-            // Passed/Approved -> Show Full Incubated Company Dashboard
-            setStage(FiltrationStage.DASHBOARD);
-          } else {
-            setStage(FiltrationStage.DASHBOARD);
-          }
-        } else {
-          setStage(FiltrationStage.DASHBOARD);
-        }
+        // Reset Logic: Bypassing mandatory apply form for smoother demo experience
+        // All users go directly to their respective hubs
+        setStage(FiltrationStage.DASHBOARD);
       }
     }
   }, []);
@@ -145,7 +134,6 @@ function App() {
         )
       )}
 
-      {/* Other components... */}
       {stage === FiltrationStage.ROADMAP && <RoadmapPage onBack={() => setStage(FiltrationStage.LANDING)} onStart={() => setStage(FiltrationStage.WELCOME)} />}
       {stage === FiltrationStage.TOOLS && <ToolsPage onBack={() => setStage(FiltrationStage.LANDING)} />}
       {stage === FiltrationStage.ACHIEVEMENTS && <AchievementsPage onBack={() => setStage(FiltrationStage.LANDING)} />}

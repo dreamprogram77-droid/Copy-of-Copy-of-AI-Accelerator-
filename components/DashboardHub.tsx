@@ -5,6 +5,8 @@ import { playPositiveSound, playCelebrationSound } from '../services/audioServic
 import { storageService } from '../services/storageService';
 import { LevelView } from './LevelView';
 import { ProgramEvaluation } from './ProgramEvaluation';
+import { Certificate } from './Certificate';
+import { DocumentsPortal } from './DocumentsPortal';
 
 interface DashboardHubProps {
   user: UserProfile & { uid: string; role: UserRole; startupId?: string };
@@ -13,13 +15,14 @@ interface DashboardHubProps {
   onNavigateToStage: (stage: any) => void;
 }
 
-export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNavigateToStage }) => {
-  const [activeTab, setActiveTab] = useState<'roadmap' | 'tasks' | 'profile' | 'evaluation' | 'settings'>('roadmap');
+export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout }) => {
+  const [activeTab, setActiveTab] = useState<'roadmap' | 'tasks' | 'profile' | 'documents' | 'evaluation' | 'settings'>('roadmap');
   const [roadmap, setRoadmap] = useState<LevelData[]>([]);
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [selectedLevel, setSelectedLevel] = useState<LevelData | null>(null);
   const [existingRating, setExistingRating] = useState<ProgramRating | null>(null);
   const [earnedBadgeIds, setEarnedBadgeIds] = useState<string[]>([]);
+  const [showFullCert, setShowFullCert] = useState(false);
   
   // Profile State
   const [profileData, setProfileData] = useState<UserProfile>(user);
@@ -65,6 +68,18 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
     const avgScore = scoredTasks.length > 0 ? Math.round(totalScore / scoredTasks.length) : 0;
     return { progress, avgScore, completedCount: completed };
   }, [roadmap, tasks]);
+
+  const getGradientForColor = (color?: string) => {
+    switch(color) {
+      case 'blue': return 'from-blue-500 to-blue-700';
+      case 'emerald': return 'from-emerald-500 to-emerald-700';
+      case 'indigo': return 'from-indigo-500 to-indigo-700';
+      case 'amber': return 'from-amber-500 to-amber-700';
+      case 'rose': return 'from-rose-500 to-rose-700';
+      case 'slate': return 'from-slate-700 to-slate-900';
+      default: return 'from-blue-500 to-indigo-600';
+    }
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -129,7 +144,7 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
       <aside className="w-72 bg-white border-l border-slate-200 flex flex-col shadow-sm sticky top-0 h-screen">
         <div className="p-8 border-b border-slate-100">
            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-600/20">BD</div>
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg">BD</div>
               <h1 className="text-sm font-black text-slate-900 tracking-tight uppercase">بيزنس ديفلوبرز</h1>
            </div>
            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -146,6 +161,7 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
              { id: 'roadmap', label: 'خارطة الطريق', icon: '🛣️' },
              { id: 'tasks', label: 'مركز المخرجات', icon: '📥' },
              { id: 'profile', label: 'ملف الشركة', icon: '🏢' },
+             { id: 'documents', label: 'الوثائق الرسمية', icon: '📜' },
              { id: 'evaluation', label: 'تقييم البرنامج', icon: '⭐' },
              { id: 'settings', label: 'الإعدادات', icon: '⚙️' }
            ].map(item => (
@@ -175,6 +191,7 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
                 {activeTab === 'roadmap' ? 'منهج التسريع المكثف' : 
                  activeTab === 'tasks' ? 'تسليم المخرجات' : 
                  activeTab === 'profile' ? 'ملف الشركة' :
+                 activeTab === 'documents' ? 'مركز الوثائق الرسمية' :
                  activeTab === 'evaluation' ? 'تقييم التجربة الريادية' : 'إعدادات الحساب'}
               </h2>
               <p className="text-slate-500 font-medium mt-1">
@@ -183,193 +200,16 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
            </div>
            
            <div className="flex gap-3 items-center">
-              {activeTab === 'profile' && (
-                <button 
-                  onClick={handleSaveProfile} 
-                  disabled={isSaving}
-                  className="px-8 py-3 bg-blue-600 text-white rounded-xl font-black text-sm shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
-                >
-                  {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
-                </button>
-              )}
               <div className="px-4 py-2 bg-white border border-slate-100 rounded-2xl shadow-sm">
                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center mb-1">التقييم العام</p>
                  <p className={`text-xl font-black text-center ${stats.avgScore >= 90 ? 'text-emerald-500' : 'text-blue-600'}`}>{stats.avgScore}%</p>
               </div>
-              <div className="h-10 w-px bg-slate-200 mx-2"></div>
-              <div className="flex gap-2">
-                {ACADEMY_BADGES.map(badge => (
-                  <div 
-                    key={badge.id} 
-                    title={badge.name}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all duration-700 border
-                      ${earnedBadgeIds.includes(badge.id) 
-                        ? `bg-gradient-to-br ${badge.color} text-white shadow-lg border-transparent scale-105` 
-                        : 'bg-slate-100 text-slate-300 border-slate-200 opacity-40 grayscale'}
-                    `}
-                  >
-                    {badge.icon}
-                  </div>
-                ))}
-              </div>
            </div>
         </header>
 
-        {activeTab === 'profile' && (
-          <div className="max-w-4xl mx-auto w-full space-y-10 animate-fade-up pb-20">
-            {/* Section 1: Basic Company Details */}
-            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-10">
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">🏢</div>
-                  <h3 className="text-2xl font-black text-slate-900">تفاصيل الشركة</h3>
-               </div>
-
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                  <div className="md:col-span-1 flex flex-col items-center gap-6">
-                     <label className={labelClass}>شعار الشركة</label>
-                     <div 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-48 h-48 rounded-[3rem] border-4 border-dashed border-slate-100 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all group relative overflow-hidden"
-                     >
-                        {profileData.logo ? (
-                          <img src={profileData.logo} className="w-full h-full object-cover" alt="Logo" />
-                        ) : (
-                          <span className="text-4xl opacity-20">🖼️</span>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                           <span className="text-white text-[10px] font-black uppercase">تحديث الصورة</span>
-                        </div>
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                     </div>
-                  </div>
-
-                  <div className="md:col-span-2 space-y-8">
-                     <div className="space-y-2">
-                        <label className={labelClass}>اسم الشركة</label>
-                        <input 
-                           className={inputClass} 
-                           value={profileData.startupName} 
-                           onChange={e => setProfileData({...profileData, startupName: e.target.value})} 
-                        />
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                           <label className={labelClass}>البريد الإلكتروني</label>
-                           <input 
-                              type="email" 
-                              className={inputClass} 
-                              value={profileData.email} 
-                              onChange={e => setProfileData({...profileData, email: e.target.value})} 
-                           />
-                        </div>
-                        <div className="space-y-2">
-                           <label className={labelClass}>رقم الجوال</label>
-                           <input 
-                              className={inputClass} 
-                              value={profileData.phone} 
-                              onChange={e => setProfileData({...profileData, phone: e.target.value})} 
-                           />
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-            {/* Section 2: Specialization */}
-            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">🎯</div>
-                  <h3 className="text-2xl font-black text-slate-900">تخصص الشركة</h3>
-               </div>
-               
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                     <label className={labelClass}>القطاع الأساسي</label>
-                     <select 
-                        className={inputClass} 
-                        value={profileData.industry} 
-                        onChange={e => setProfileData({...profileData, industry: e.target.value})}
-                     >
-                        <option value="Artificial Intelligence (AI)">الذكاء الإصطناعي - Artificial Intelligence (AI)</option>
-                        {SECTORS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                     </select>
-                  </div>
-                  <div className="space-y-2">
-                     <label className={labelClass}>وصف قصير</label>
-                     <input 
-                        className={inputClass} 
-                        placeholder="جملة واحدة تصف مشروعك..."
-                        value={profileData.startupDescription} 
-                        onChange={e => setProfileData({...profileData, startupDescription: e.target.value})} 
-                     />
-                  </div>
-                  <div className="md:col-span-2 space-y-2">
-                     <label className={labelClass}>الموقع الالكتروني</label>
-                     <input 
-                        className={inputClass} 
-                        placeholder="https://www.company.com"
-                        value={profileData.website} 
-                        onChange={e => setProfileData({...profileData, website: e.target.value})} 
-                     />
-                  </div>
-               </div>
-            </div>
-
-            {/* Section 3: Social Media */}
-            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">🌐</div>
-                  <h3 className="text-2xl font-black text-slate-900">الشبكات الاجتماعية</h3>
-               </div>
-               
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                     <label className={labelClass}>LinkedIn</label>
-                     <input 
-                        className={inputClass} 
-                        placeholder="رابط الملف الشخصي"
-                        value={profileData.linkedin} 
-                        onChange={e => setProfileData({...profileData, linkedin: e.target.value})} 
-                     />
-                  </div>
-                  <div className="space-y-2">
-                     <label className={labelClass}>X (Twitter)</label>
-                     <input className={inputClass} placeholder="@username" />
-                  </div>
-               </div>
-            </div>
-
-            {/* Section 4: Detailed Description */}
-            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center text-xl">📝</div>
-                  <h3 className="text-2xl font-black text-slate-900">وصف مفصل</h3>
-               </div>
-               <div className="space-y-2">
-                  <label className={labelClass}>نبذة عن رؤية وأهداف الشركة</label>
-                  <textarea 
-                     className={inputClass + " h-64 resize-none leading-relaxed"} 
-                     placeholder="يرجى كتابة النص هنا..."
-                     value={profileData.startupBio} 
-                     onChange={e => setProfileData({...profileData, startupBio: e.target.value})} 
-                  />
-               </div>
-               <div className="pt-4">
-                  <button 
-                    onClick={handleSaveProfile} 
-                    disabled={isSaving}
-                    className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-black transition-all active:scale-[0.98] disabled:opacity-50"
-                  >
-                     {isSaving ? 'جاري الحفظ...' : 'حفظ'}
-                  </button>
-               </div>
-            </div>
-          </div>
-        )}
-
         {activeTab === 'roadmap' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-fade-up">
-            {roadmap.map((level, i) => (
+            {roadmap.map((level) => (
               <div 
                 key={level.id}
                 onClick={() => !level.isLocked && setSelectedLevel(level)}
@@ -380,26 +220,27 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
                 <div className="aspect-video relative overflow-hidden">
                    <img src={level.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
                    <div className="absolute inset-0 bg-slate-900/40"></div>
-                   <div className="absolute top-6 right-6 w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-xl">{level.icon}</div>
-                   {level.isCompleted && (
-                     <div className="absolute top-6 left-6 bg-emerald-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg">مكتمل ✓</div>
-                   )}
+                   <div className={`absolute top-6 right-6 w-14 h-14 bg-gradient-to-br ${getGradientForColor(level.customColor)} rounded-2xl flex items-center justify-center text-3xl shadow-xl text-white`}>{level.icon}</div>
                 </div>
                 <div className="p-8 space-y-4">
-                   <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">المحطة 0{level.id}</span>
-                      {level.isLocked && <span className="text-slate-400 text-xs">🔒 مغلق</span>}
-                   </div>
                    <h3 className="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">{level.title}</h3>
                    <p className="text-slate-500 text-sm font-medium leading-relaxed line-clamp-2">{level.description}</p>
                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
                       <span className="text-[10px] font-bold text-slate-400">المدة المتوقعة: أسبوع</span>
-                      {!level.isLocked && <span className="text-blue-600 font-black text-[10px] uppercase tracking-tighter group-hover:translate-x-[-4px] transition-transform">دخول المحطة ←</span>}
+                      {!level.isLocked && <span className="text-blue-600 font-black text-[10px] uppercase tracking-tighter">دخول المحطة ←</span>}
                    </div>
                 </div>
               </div>
             ))}
           </div>
+        )}
+
+        {activeTab === 'documents' && (
+          <DocumentsPortal 
+            user={profileData} 
+            progress={stats.progress} 
+            onShowCertificate={() => setShowFullCert(true)} 
+          />
         )}
 
         {activeTab === 'tasks' && (
@@ -449,67 +290,79 @@ export const DashboardHub: React.FC<DashboardHubProps> = ({ user, onLogout, onNa
           </div>
         )}
 
-        {activeTab === 'evaluation' && (
-          <div className="max-w-3xl mx-auto">
-             {existingRating ? (
-               <div className="card-premium p-12 text-center space-y-8 animate-fade-in">
-                  <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-4xl shadow-inner">✓</div>
-                  <div className="space-y-2">
-                     <h3 className="text-3xl font-black text-slate-900">شكراً لتقييمك الصادق!</h3>
-                     <p className="text-slate-500 font-medium">لقد أعطيت البرنامج {existingRating.stars} نجوم.</p>
-                  </div>
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-right">
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">ملاحظاتك المسجلة:</p>
-                     <p className="text-slate-700 font-medium leading-relaxed italic">"{existingRating.feedback || 'لم تترك تعليقاً نصياً'}"</p>
-                  </div>
-                  <button onClick={() => setExistingRating(null)} className="text-blue-600 font-black text-[10px] uppercase tracking-widest hover:underline">تعديل التقييم</button>
+        {activeTab === 'profile' && (
+          <div className="max-w-4xl mx-auto w-full space-y-10 animate-fade-up pb-20">
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-10">
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">🏢</div>
+                  <h3 className="text-2xl font-black text-slate-900">تفاصيل الشركة</h3>
                </div>
-             ) : (
-               <ProgramEvaluation 
-                 onClose={() => setActiveTab('roadmap')} 
-                 onSubmit={handleEvaluationSubmit} 
-               />
-             )}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                  <div className="md:col-span-1 flex flex-col items-center gap-6">
+                     <label className={labelClass}>شعار الشركة</label>
+                     <div onClick={() => fileInputRef.current?.click()} className="w-48 h-48 rounded-[3rem] border-4 border-dashed border-slate-100 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all group relative overflow-hidden">
+                        {profileData.logo ? <img src={profileData.logo} className="w-full h-full object-cover" alt="Logo" /> : <span className="text-4xl opacity-20">🖼️</span>}
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                     </div>
+                  </div>
+                  <div className="md:col-span-2 space-y-8">
+                     <div className="space-y-2">
+                        <label className={labelClass}>اسم الشركة</label>
+                        <input className={inputClass} value={profileData.startupName} onChange={e => setProfileData({...profileData, startupName: e.target.value})} />
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                           <label className={labelClass}>البريد الإلكتروني</label>
+                           <input type="email" className={inputClass} value={profileData.email} onChange={e => setProfileData({...profileData, email: e.target.value})} />
+                        </div>
+                        <div className="space-y-2">
+                           <label className={labelClass}>رقم الجوال</label>
+                           <input className={inputClass} value={profileData.phone} onChange={e => setProfileData({...profileData, phone: e.target.value})} />
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            {/* Specialization Section */}
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl">🎯</div>
+                  <h3 className="text-2xl font-black text-slate-900">تخصص الشركة</h3>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                     <label className={labelClass}>القطاع الأساسي</label>
+                     <select className={inputClass} value={profileData.industry} onChange={e => setProfileData({...profileData, industry: e.target.value})}>
+                        <option value="Artificial Intelligence (AI)">الذكاء الإصطناعي - Artificial Intelligence (AI)</option>
+                        {SECTORS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                     </select>
+                  </div>
+                  <div className="space-y-2">
+                     <label className={labelClass}>وصف قصير</label>
+                     <input className={inputClass} placeholder="جملة واحدة تصف مشروعك..." value={profileData.startupDescription} onChange={e => setProfileData({...profileData, startupDescription: e.target.value})} />
+                  </div>
+               </div>
+            </div>
+            <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm space-y-8">
+               <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center text-xl">📝</div>
+                  <h3 className="text-2xl font-black text-slate-900">وصف مفصل</h3>
+               </div>
+               <div className="space-y-2">
+                  <label className={labelClass}>نبذة عن رؤية وأهداف الشركة</label>
+                  <textarea className={inputClass + " h-64 resize-none leading-relaxed"} placeholder="يرجى كتابة النص هنا" value={profileData.startupBio} onChange={e => setProfileData({...profileData, startupBio: e.target.value})} />
+               </div>
+               <div className="pt-4">
+                  <button onClick={handleSaveProfile} disabled={isSaving} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-black transition-all active:scale-[0.98] disabled:opacity-50">
+                     {isSaving ? 'جاري الحفظ...' : 'حفظ'}
+                  </button>
+               </div>
+            </div>
           </div>
         )}
 
-        {activeTab === 'settings' && (
-          <div className="max-w-2xl mx-auto animate-fade-up space-y-8">
-             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center text-xl">🔒</div>
-                  <h3 className="text-2xl font-black text-slate-900">أمان الحساب</h3>
-                </div>
-                <div className="space-y-6">
-                   <div className="space-y-2">
-                      <label className={labelClass}>كلمة المرور الحالية</label>
-                      <input type="password" className={inputClass} placeholder="••••••••" />
-                   </div>
-                   <div className="space-y-2">
-                      <label className={labelClass}>كلمة المرور الجديدة</label>
-                      <input type="password" className={inputClass} placeholder="••••••••" />
-                   </div>
-                   <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm shadow-lg">تحديث كلمة المرور</button>
-                </div>
-             </div>
-
-             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center text-xl">🔔</div>
-                  <h3 className="text-2xl font-black text-slate-900">التنبيهات</h3>
-                </div>
-                <div className="space-y-4">
-                   <label className="flex items-center justify-between cursor-pointer group">
-                      <span className="font-bold text-slate-700">تنبيهات المخرجات والمهام</span>
-                      <input type="checkbox" className="w-6 h-6 accent-blue-600" defaultChecked />
-                   </label>
-                   <label className="flex items-center justify-between cursor-pointer group">
-                      <span className="font-bold text-slate-700">تنبيهات المستشار الذكي</span>
-                      <input type="checkbox" className="w-6 h-6 accent-blue-600" defaultChecked />
-                   </label>
-                </div>
-             </div>
-          </div>
+        {showFullCert && (
+          <Certificate user={profileData} onClose={() => setShowFullCert(false)} />
         )}
       </main>
     </div>
