@@ -283,7 +283,6 @@ export interface NominationData {
   incubationReason?: string;
   weeklyHours: 'LESS_5' | '5-10' | '10-20' | '20+';
   agreesToWeeklySession: boolean;
-  agreesToWeeklySession?: boolean;
   agreesToKPIs: boolean;
   isCommitted10Hours?: boolean;
   potentialObstacles?: string;

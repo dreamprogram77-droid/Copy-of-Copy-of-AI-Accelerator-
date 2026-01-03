@@ -174,10 +174,11 @@ function App() {
     }
   };
 
-  const handleTaskSubmitFromView = (taskId: string, content: string) => {
+  // Fixed the parameter type to allow submissionData objects (like fileData/fileName)
+  const handleTaskSubmitFromView = (taskId: string, submissionData: any) => {
     const session = storageService.getCurrentSession();
     if (session) {
-      storageService.submitTask(session.uid, taskId, content);
+      storageService.submitTask(session.uid, taskId, submissionData);
       hydrateSession(); // Sync tasks and levels
     }
   };
