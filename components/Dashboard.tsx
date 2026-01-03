@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { LevelData, UserProfile, DIGITAL_SHIELDS, SECTORS, TaskRecord, SERVICES_CATALOG, ServiceItem, ServicePackage, ServiceRequest, OpportunityAnalysis, ProgramRating } from '../types';
+import { LevelData, UserProfile, DIGITAL_SHIELDS, SECTORS, TaskRecord, SERVICES_CATALOG, ServiceItem, ServicePackage, ServiceRequest, OpportunityAnalysis, ProgramRating, Partner } from '../types';
 import { storageService } from '../services/storageService';
 import { discoverOpportunities, suggestIconsForLevels } from '../services/geminiService';
 import { Language, getTranslation } from '../services/i18nService';
@@ -40,7 +40,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [activeNav, setActiveNav] = useState('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => (localStorage.getItem('dashboard_theme_mode') as any) || 'light');
-  const [isCustomizeMode, setIsCustomizeMode] = useState(false);
   const [isAISuggesting, setIsAISuggesting] = useState(false);
   
   const t = getTranslation(lang);
@@ -60,7 +59,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [selectedTask, setSelectedTask] = useState<TaskRecord | null>(null);
   const [submissionFile, setSubmissionFile] = useState<{data: string, name: string} | null>(null);
   
-  // Fix: Added missing selectedService and related states for service package handling
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [serviceDetails, setServiceDetails] = useState('');
@@ -70,14 +68,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [oppResult, setOppResult] = useState<OpportunityAnalysis | null>(null);
   
   const [showRatingModal, setShowRatingModal] = useState(false);
-  const [hasRated, setHasRated] = useState(false);
-
-  const [editingLevel, setEditingLevel] = useState<LevelData | null>(null);
-  const [customIcon, setCustomIcon] = useState('');
-  const [customColorName, setCustomColorName] = useState('أزرق');
-
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taskFileRef = useRef<HTMLInputElement>(null);
+
+  // Profile Specific State
+  const [newPartner, setNewPartner] = useState<Partner>({ name: '', role: '' });
 
   const completedCount = levels.filter(l => l.isCompleted).length;
   const progress = (completedCount / levels.length) * 100;
@@ -108,14 +104,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
           lastName: currentUserRecord.lastName,
           email: currentUserRecord.email,
           phone: currentUserRecord.phone,
+          founderBio: currentUserRecord.founderBio || '',
           startupName: currentStartup.name,
           startupDescription: currentStartup.description,
+          startupBio: currentStartup.startupBio || '',
           industry: currentStartup.industry,
+          website: currentStartup.website || '',
+          linkedin: currentStartup.linkedin || '',
+          partners: currentStartup.partners || [],
           logo: localStorage.getItem(`logo_${session.uid}`) || undefined
         }));
       }
-      const existingRating = storageService.getProgramRating(session.uid);
-      if (existingRating) setHasRated(true);
     }
   }, [activeNav, levels]);
 
@@ -128,18 +127,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         setUserProfile(prev => ({ ...prev, logo: base64 }));
         const session = storageService.getCurrentSession();
         if (session) localStorage.setItem(`logo_${session.uid}`, base64);
-        playPositiveSound();
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleTaskFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSubmissionFile({ data: reader.result as string, name: file.name });
         playPositiveSound();
       };
       reader.readAsDataURL(file);
@@ -159,7 +146,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
     playCelebrationSound();
   };
 
-  // Fix: Added handleServiceRequestSubmit to process requests for professional services
+  const handleSaveProfile = () => {
+    setIsSaving(true);
+    const session = storageService.getCurrentSession();
+    if (session) {
+      storageService.updateUser(session.uid, {
+        firstName: userProfile.firstName,
+        lastName: userProfile.lastName,
+        email: userProfile.email,
+        phone: userProfile.phone,
+        founderBio: userProfile.founderBio
+      });
+      storageService.updateStartup(session.projectId, {
+        name: userProfile.startupName,
+        description: userProfile.startupDescription,
+        startupBio: userProfile.startupBio,
+        industry: userProfile.industry,
+        website: userProfile.website,
+        linkedin: userProfile.linkedin,
+        partners: userProfile.partners
+      });
+    }
+    setTimeout(() => {
+      setIsSaving(false);
+      playCelebrationSound();
+    }, 1000);
+  };
+
+  const addPartner = () => {
+    if (!newPartner.name.trim() || !newPartner.role.trim()) return;
+    setUserProfile(prev => ({
+      ...prev,
+      partners: [...(prev.partners || []), newPartner]
+    }));
+    setNewPartner({ name: '', role: '' });
+    playPositiveSound();
+  };
+
+  const removePartner = (index: number) => {
+    setUserProfile(prev => ({
+      ...prev,
+      partners: prev.partners?.filter((_, i) => i !== index)
+    }));
+  };
+
   const handleServiceRequestSubmit = () => {
     if (!selectedService || !selectedPackageId) return;
     const session = storageService.getCurrentSession();
@@ -171,7 +201,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setSelectedPackageId(null);
       setServiceDetails('');
       playCelebrationSound();
-      alert('تم إرسال طلب الخدمة بنجاح! سيتواصل معك الفريق المختص قريباً.');
+      alert('تم إرسال طلب الخدمة بنجاح!');
     }
   };
 
@@ -217,9 +247,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         .sidebar-neo { backdrop-filter: blur(40px); background: ${isDark ? 'rgba(15, 23, 42, 0.4)' : 'rgba(255, 255, 255, 0.7)'}; border-left: 1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
         .dashboard-header { backdrop-filter: blur(20px); background: ${isDark ? 'rgba(2, 6, 23, 0.6)' : 'rgba(248, 250, 252, 0.6)'}; border-bottom: 1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
         .active-nav { background: #2563eb; color: white; box-shadow: 0 12px 30px -10px rgba(37, 99, 235, 0.5); transform: ${t.dir === 'rtl' ? 'translateX(-6px)' : 'translateX(6px)'}; }
-        .card-neo { transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1); border: 1px solid ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'}; background: ${isDark ? 'rgba(30, 41, 59, 0.25)' : 'rgba(255,255,255,0.9)'}; }
-        .card-neo:hover { transform: translateY(-8px) scale(1.01); box-shadow: 0 30px 60px -15px rgba(0,0,0,0.1); border-color: rgba(59, 130, 246, 0.4); }
-        .timeline-fill { position: absolute; top: 22px; right: 0; height: 4px; background: linear-gradient(to left, #2563eb, #60a5fa); z-index: 1; transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1); border-radius: 10px; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        .card-neo { transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1); border: 1px solid ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'}; background: ${isDark ? 'rgba(30, 41, 59, 0.25)' : 'rgba(255, 255, 255, 0.9)'}; }
+        .card-neo:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.05); }
+        .input-profile { width: 100%; padding: 1rem; border-radius: 1rem; border: 1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; background: ${isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'}; outline: none; transition: all 0.3s; font-weight: bold; }
+        .input-profile:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); background: ${isDark ? 'rgba(255,255,255,0.05)' : 'white'}; }
       `}</style>
 
       {/* Floating Modern Sidebar */}
@@ -280,11 +311,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
            </div>
            <div className="flex items-center gap-4">
-              <button onClick={handleAISuggest} disabled={isAISuggesting} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50">
-                {isAISuggesting ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : '✨'}
-                <span>تحديث الأيقونات (AI)</span>
-              </button>
-              <button onClick={onOpenProAnalytics} className="bg-blue-600 text-white px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all hover:bg-blue-700">تحليلات PRO</button>
+              {activeNav === 'startup_profile' && (
+                <button onClick={handleSaveProfile} disabled={isSaving} className="bg-blue-600 text-white px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/30 active:scale-95 transition-all hover:bg-blue-700">
+                  {isSaving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+                </button>
+              )}
+              {activeNav === 'home' && (
+                 <>
+                   <button onClick={handleAISuggest} disabled={isAISuggesting} className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center gap-3 disabled:opacity-50">
+                    {isAISuggesting ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : '✨'}
+                    <span>تحديث الأيقونات (AI)</span>
+                  </button>
+                  <button onClick={onOpenProAnalytics} className="bg-blue-600 text-white px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all hover:bg-blue-700">تحليلات PRO</button>
+                 </>
+              )}
            </div>
         </header>
 
@@ -317,19 +357,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                    </div>
                 </div>
 
-                {/* Vertical Level List with linked tasks */}
+                {/* Roadmap List */}
                 <div className="space-y-8">
                    <div className="flex justify-between items-center px-4">
                       <h3 className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>تفاصيل محطات التسريع والمخرجات</h3>
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">{completedCount} من {levels.length} محطات مكتملة</span>
                    </div>
-                   
                    <div className={`rounded-[3.5rem] card-neo overflow-hidden`}>
                       <div className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-100'}`}>
                         {levels.map((level) => {
                           const colorSet = getLevelColorSet(level.customColor);
                           const levelTask = getTaskForLevel(level.id);
-                          
                           return (
                             <div 
                               key={level.id} 
@@ -349,15 +387,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                                       {getStatusBadge(levelTask)}
                                     </div>
                                     <p className="text-sm text-slate-500 font-medium truncate mt-1 opacity-80">{level.description}</p>
-                                    {levelTask && !level.isLocked && (
-                                      <div className="flex items-center gap-2 mt-2">
-                                        <span className="text-[10px] font-bold text-blue-500">المخرج المطلوب:</span>
-                                        <span className="text-[10px] text-slate-400">{levelTask.title} (PDF)</span>
-                                      </div>
-                                    )}
                                   </div>
                                </div>
-                               
                                <div className="flex items-center gap-6 shrink-0 px-6">
                                   {level.isLocked ? (
                                     <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border ${isDark ? 'bg-slate-900 border-white/5 text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-400'}`}>
@@ -487,38 +518,121 @@ export const Dashboard: React.FC<DashboardProps> = ({
            )}
 
            {activeNav === 'startup_profile' && (
-             <div className="max-w-4xl mx-auto space-y-12 animate-fade-in-up pb-20">
-                <div className={`p-14 rounded-[4rem] card-neo space-y-12`}>
-                   <div className="flex flex-col md:flex-row gap-16 items-center">
-                      <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                         <div className="w-48 h-48 rounded-[3.5rem] border-4 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-slate-900/50 overflow-hidden premium-shadow group-hover:border-blue-500 transition-colors">
-                           {userProfile.logo ? <img src={userProfile.logo} className="w-full h-full object-cover" alt="logo" /> : <span className="text-6xl opacity-30">📁</span>}
-                         </div>
-                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 rounded-[3.5rem] transition-opacity font-black text-xs uppercase tracking-widest">تغيير الشعار</div>
-                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+             <div className="max-w-5xl mx-auto space-y-10 animate-fade-in-up pb-20">
+                {/* Founder Info Card */}
+                <div className="p-10 rounded-[3rem] card-neo space-y-10 relative overflow-hidden">
+                   <div className="flex items-center gap-4 mb-6">
+                      <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg">👤</div>
+                      <h3 className="text-2xl font-black">بيانات المؤسس</h3>
+                   </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">الاسم الأول</label>
+                        <input className="input-profile" value={userProfile.firstName} onChange={e => setUserProfile({...userProfile, firstName: e.target.value})} />
                       </div>
-                      <div className="flex-1 space-y-8 w-full">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">اللقب</label>
+                        <input className="input-profile" value={userProfile.lastName} onChange={e => setUserProfile({...userProfile, lastName: e.target.value})} />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">النبذة الشخصية (Bio)</label>
+                        <textarea className="input-profile h-32 resize-none leading-relaxed" placeholder="تحدث عن خبراتك ومهاراتك الريادية..." value={userProfile.founderBio} onChange={e => setUserProfile({...userProfile, founderBio: e.target.value})} />
+                      </div>
+                   </div>
+                </div>
+
+                {/* Company Info Card */}
+                <div className="p-10 rounded-[3rem] card-neo space-y-10">
+                   <div className="flex flex-col md:flex-row gap-12">
+                      <div className="w-full md:w-1/3 flex flex-col items-center gap-6">
+                        <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                           <div className="w-48 h-48 rounded-[3.5rem] border-4 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center bg-slate-50 dark:bg-slate-900/50 overflow-hidden shadow-inner group-hover:border-blue-500 transition-colors">
+                              {userProfile.logo ? <img src={userProfile.logo} className="w-full h-full object-cover" alt="logo" /> : <span className="text-6xl opacity-30">📁</span>}
+                           </div>
+                           <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 rounded-[3.5rem] transition-opacity font-black text-[10px] uppercase tracking-widest">رفع الشعار</div>
+                           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">شعار المشروع الرسمي</p>
+                      </div>
+
+                      <div className="flex-1 space-y-8">
                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">اسم المشروع</label>
-                               <input className={`w-full p-5 rounded-2xl border outline-none font-bold ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'} focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all`} value={userProfile.startupName} onChange={e => setUserProfile({...userProfile, startupName: e.target.value})} />
+                               <input className="input-profile" value={userProfile.startupName} onChange={e => setUserProfile({...userProfile, startupName: e.target.value})} />
                             </div>
                             <div className="space-y-2">
                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">القطاع</label>
-                               <select className={`w-full p-5 rounded-2xl border outline-none font-bold ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'} focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all`} value={userProfile.industry} onChange={e => setUserProfile({...userProfile, industry: e.target.value})}>
+                               <select className="input-profile" value={userProfile.industry} onChange={e => setUserProfile({...userProfile, industry: e.target.value})}>
                                   {SECTORS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                </select>
                             </div>
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">الموقع الإلكتروني</label>
+                               <input className="input-profile font-mono text-sm" placeholder="https://..." value={userProfile.website} onChange={e => setUserProfile({...userProfile, website: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">LinkedIn الشركة</label>
+                               <input className="input-profile font-mono text-sm" placeholder="https://linkedin.com/company/..." value={userProfile.linkedin} onChange={e => setUserProfile({...userProfile, linkedin: e.target.value})} />
+                            </div>
                          </div>
                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">الوصف الاستراتيجي للمشروع</label>
-                            <textarea className={`w-full h-40 p-6 rounded-2xl border outline-none font-medium text-base resize-none ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'} focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all leading-relaxed`} value={userProfile.startupDescription} onChange={e => setUserProfile({...userProfile, startupDescription: e.target.value})} />
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pr-2">نبذة عن الشركة (Mission)</label>
+                            <textarea className="input-profile h-40 resize-none leading-relaxed" placeholder="ما هي رؤيتكم والهدف الجوهري للمشروع؟" value={userProfile.startupBio} onChange={e => setUserProfile({...userProfile, startupBio: e.target.value})} />
                          </div>
-                         <button onClick={() => { setIsSaving(true); setTimeout(() => { setIsSaving(false); playCelebrationSound(); }, 800); }} disabled={isSaving} className="w-full py-6 bg-blue-600 text-white rounded-[1.8rem] font-black text-lg shadow-2xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform active:scale-95">
-                            {isSaving ? 'جاري الحفظ...' : 'حفظ التعديلات الاستراتيجية'}
-                         </button>
                       </div>
                    </div>
+                </div>
+
+                {/* Team / Partners Card */}
+                <div className="p-10 rounded-[3rem] card-neo space-y-8">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg">👥</div>
+                      <h3 className="text-2xl font-black">الشركاء المؤسسين (Team)</h3>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-6">
+                        <div className="p-6 bg-slate-50 dark:bg-white/5 rounded-[2rem] border border-slate-100 dark:border-white/5 space-y-4">
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">إضافة شريك جديد</p>
+                           <div className="space-y-3">
+                              <input className="input-profile bg-white dark:bg-slate-900 shadow-sm" placeholder="اسم الشريك" value={newPartner.name} onChange={e => setNewPartner({...newPartner, name: e.target.value})} />
+                              <input className="input-profile bg-white dark:bg-slate-900 shadow-sm" placeholder="الدور (مثال: شريك تقني)" value={newPartner.role} onChange={e => setNewPartner({...newPartner, role: e.target.value})} />
+                              <button onClick={addPartner} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-xs hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 active:scale-95">إضافة الشريك للقائمة</button>
+                           </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                         {userProfile.partners && userProfile.partners.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-3">
+                               {userProfile.partners.map((p, i) => (
+                                 <div key={i} className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-white/5 flex justify-between items-center group animate-fade-in">
+                                    <div className="flex items-center gap-4">
+                                       <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-black">{p.name.charAt(0)}</div>
+                                       <div>
+                                          <p className="font-black text-sm">{p.name}</p>
+                                          <p className="text-[10px] text-slate-500 font-bold uppercase">{p.role}</p>
+                                       </div>
+                                    </div>
+                                    <button onClick={() => removePartner(i)} className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 p-2">✕</button>
+                                 </div>
+                               ))}
+                            </div>
+                         ) : (
+                            <div className="h-full flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2rem] text-center opacity-30">
+                               <p className="text-5xl mb-4">🤝</p>
+                               <p className="font-bold text-sm">لا يوجد شركاء مسجلين حتى الآن</p>
+                            </div>
+                         )}
+                      </div>
+                   </div>
+                </div>
+
+                <div className="flex justify-center pt-10">
+                   <button onClick={handleSaveProfile} disabled={isSaving} className="px-20 py-7 bg-blue-600 text-white rounded-[2.5rem] font-black text-2xl shadow-3xl shadow-blue-500/30 hover:bg-blue-700 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50">
+                      {isSaving ? 'جاري مزامنة البيانات...' : 'حفظ الملف التعريفي 🚀'}
+                   </button>
                 </div>
              </div>
            )}
@@ -531,7 +645,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex justify-between items-start mb-10">
                  <div>
                     <h3 className="text-3xl font-black tracking-tight">تسليم: {selectedTask.title}</h3>
-                    <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest mt-1">Deliverable Submission Portal (PDF Only)</p>
+                    <p className="text-blue-50 text-[10px] font-black uppercase tracking-widest mt-1">Deliverable Submission Portal (PDF Only)</p>
                  </div>
                  <button onClick={() => { setSelectedTask(null); setSubmissionFile(null); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">✕</button>
               </div>
@@ -540,7 +654,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
               
               <div onClick={() => taskFileRef.current?.click()} className={`w-full h-72 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300 ${submissionFile ? 'bg-emerald-500/5 border-emerald-500' : (isDark ? 'bg-slate-800 border-white/5 hover:border-blue-500/50' : 'bg-slate-50 border-slate-200 hover:border-blue-500/50')}`}>
-                 <input type="file" ref={taskFileRef} className="hidden" accept="application/pdf" onChange={handleTaskFileUpload} />
+                 <input type="file" ref={taskFileRef} className="hidden" accept="application/pdf" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && file.type === 'application/pdf') {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setSubmissionFile({ data: reader.result as string, name: file.name });
+                        playPositiveSound();
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                 }} />
                  {submissionFile ? (
                    <>
                       <span className="text-5xl mb-4">📄</span>
@@ -564,7 +688,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
 
-        {/* Fix: Added selectedService Modal to handle package selection and request details */}
+        {/* selectedService Modal */}
         {selectedService && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in" dir="rtl">
             <div className={`max-w-4xl w-full p-10 md:p-14 rounded-[4rem] ${isDark ? 'bg-slate-900 border border-white/5 text-white' : 'bg-white shadow-2xl text-slate-900'} animate-fade-in-up overflow-y-auto max-h-[90vh]`}>

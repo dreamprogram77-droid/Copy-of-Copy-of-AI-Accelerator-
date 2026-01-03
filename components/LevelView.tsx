@@ -1,74 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { LevelData, UserProfile, Question, DIGITAL_SHIELDS, TaskRecord } from '../types';
-import { generateLevelMaterial, generateLevelQuiz, evaluateExerciseResponse } from '../services/geminiService';
+import { LevelData, UserProfile, Question, TaskRecord, AIReviewResult } from '../types';
+import { generateLevelMaterial, generateLevelQuiz, reviewDeliverableAI } from '../services/geminiService';
 import { playPositiveSound, playCelebrationSound, playErrorSound } from '../services/audioService';
-
-interface LevelTheme {
-  id: string;
-  name: string;
-  primary: string;
-  secondary: string;
-  accent: string;
-  bg: string;
-  border: string;
-  text: string;
-  ring: string;
-  gradient: string;
-}
-
-const THEMES: Record<string, LevelTheme> = {
-  'أزرق': { 
-    id: 'blue', name: 'أزرق احترافي', 
-    primary: 'bg-blue-600', secondary: 'bg-blue-50', accent: 'text-blue-600', 
-    bg: 'bg-blue-50/50', border: 'border-blue-100', text: 'text-blue-700', ring: 'ring-blue-100',
-    gradient: 'from-blue-600 to-indigo-700'
-  },
-  'أخضر': { 
-    id: 'emerald', name: 'أخضر نمو', 
-    primary: 'bg-emerald-600', secondary: 'bg-emerald-50', accent: 'text-emerald-600', 
-    bg: 'bg-emerald-50/50', border: 'border-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-100',
-    gradient: 'from-emerald-600 to-teal-700'
-  },
-  'أحمر': { 
-    id: 'rose', name: 'أحمر طموح', 
-    primary: 'bg-rose-600', secondary: 'bg-rose-50', accent: 'text-rose-600', 
-    bg: 'bg-rose-50/50', border: 'border-rose-100', text: 'text-rose-700', ring: 'ring-rose-100',
-    gradient: 'from-rose-600 to-pink-700'
-  },
-  'بنفسجي': { 
-    id: 'indigo', name: 'بنفسجي عصري', 
-    primary: 'bg-indigo-600', secondary: 'bg-indigo-50', accent: 'text-indigo-600', 
-    bg: 'bg-indigo-50/50', border: 'border-indigo-100', text: 'text-indigo-700', ring: 'ring-indigo-100',
-    gradient: 'from-indigo-600 to-purple-700'
-  },
-  'برتقالي': { 
-    id: 'orange', name: 'برتقالي إبداعي', 
-    primary: 'bg-orange-500', secondary: 'bg-orange-50', accent: 'text-orange-500', 
-    bg: 'bg-orange-50/50', border: 'border-orange-100', text: 'text-orange-700', ring: 'ring-orange-100',
-    gradient: 'from-orange-500 to-amber-600'
-  },
-  'ذهبي': { 
-    id: 'amber', name: 'ذهبي ريادي', 
-    primary: 'bg-amber-600', secondary: 'bg-amber-50', accent: 'text-amber-600', 
-    bg: 'bg-amber-50/50', border: 'border-amber-100', text: 'text-amber-700', ring: 'ring-amber-100',
-    gradient: 'from-amber-500 to-orange-600'
-  },
-  'وردي': { 
-    id: 'pink', name: 'وردي ملهم', 
-    primary: 'bg-pink-600', secondary: 'bg-pink-50', accent: 'text-pink-600', 
-    bg: 'bg-pink-50/50', border: 'border-pink-100', text: 'text-pink-700', ring: 'ring-pink-100',
-    gradient: 'from-pink-600 to-rose-600'
-  },
-  'سحابي': { 
-    id: 'slate', name: 'سحابي متوازن', 
-    primary: 'bg-slate-600', secondary: 'bg-slate-50', accent: 'text-slate-600', 
-    bg: 'bg-slate-50/50', border: 'border-slate-100', text: 'text-slate-700', ring: 'ring-slate-100',
-    gradient: 'from-slate-600 to-slate-800'
-  }
-};
-
-const DEFAULT_THEMES = Object.values(THEMES);
 
 interface LevelViewProps {
   level: LevelData;
@@ -76,38 +10,29 @@ interface LevelViewProps {
   tasks: TaskRecord[]; 
   onComplete: () => void;
   onBack: () => void;
-  onSubmitTask: (taskId: string, submissionData: {fileData: string, fileName: string}) => void;
+  onSubmitTask: (taskId: string, submissionData: {fileData: string, fileName: string, aiReview?: AIReviewResult}) => void;
   onRequestMentorship?: () => void;
 }
 
-enum Step { LOADING_CONTENT, LEARN, EXERCISE, LOADING_QUIZ, QUIZ, OFFICIAL_TASK, COMPLETED }
+enum Step { LOADING_CONTENT, LEARN, LOADING_QUIZ, QUIZ, OFFICIAL_TASK, AI_REVIEWING, REVIEW_RESULT, COMPLETED }
 
 export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComplete, onBack, onSubmitTask, onRequestMentorship }) => {
   const [step, setStep] = useState<Step>(Step.LOADING_CONTENT);
   const [content, setContent] = useState<string>('');
-  const [exercisePrompt, setExercisePrompt] = useState<string>('');
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
   const [currentContentPage, setCurrentContentPage] = useState(0);
-  const [revealedInsights, setRevealedInsights] = useState<Record<number, boolean>>({});
-  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('level_display_mode') === 'dark');
   const [submissionFile, setSubmissionFile] = useState<{data: string, name: string} | null>(null);
+  const [aiReview, setAiReview] = useState<AIReviewResult | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const activeTheme = useMemo(() => {
-     if (level.customColor && THEMES[level.customColor]) return THEMES[level.customColor];
-     return DEFAULT_THEMES[(level.id - 1) % DEFAULT_THEMES.length];
-  }, [level.customColor, level.id]);
 
   const levelTask = useMemo(() => tasks.find(t => t.levelId === level.id), [tasks, level.id]);
 
   const carouselItems = useMemo(() => {
     if (!content) return [];
     const pages = content.split('\n\n').filter(p => p.trim().length > 0);
-    const items = pages.map(p => ({ type: 'content' as const, data: p }));
-    items.push({ type: 'summary' as const, data: '' });
-    return items;
+    return pages.map(p => ({ type: 'content' as const, data: p }));
   }, [content]);
 
   useEffect(() => {
@@ -115,17 +40,11 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
       try {
         const data = await generateLevelMaterial(level.id, level.title, user);
         setContent(data.content);
-        setExercisePrompt(data.exercise);
         setTimeout(() => setStep(Step.LEARN), 1500);
       } catch (err) { console.error(err); }
     };
     loadContent();
   }, [level.id, level.title, user]);
-
-  const toggleInsight = (idx: number) => {
-    setRevealedInsights(prev => ({ ...prev, [idx]: !prev[idx] }));
-    if (!revealedInsights[idx]) playPositiveSound();
-  };
 
   const startQuiz = async () => {
     setStep(Step.LOADING_QUIZ);
@@ -142,330 +61,207 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
     quizQuestions.forEach((q, idx) => { if (q.correctIndex === quizAnswers[idx]) score++; });
     if (score >= Math.ceil(quizQuestions.length * 0.6)) {
        playPositiveSound();
-       // Check if there is a task linked to this level
-       if (levelTask) {
-          setStep(Step.OFFICIAL_TASK);
-       } else {
-          setStep(Step.COMPLETED);
-       }
+       setStep(Step.OFFICIAL_TASK);
     } else {
       playErrorSound();
-      alert('نعتذر، لم تجتاز الاختبار بنسبة كافية. يرجى مراجعة المادة وإعادة المحاولة.');
+      alert('لم تجتاز الاختبار. أعد مراجعة المادة.');
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSubmissionFile({
-          data: reader.result as string,
-          name: file.name
-        });
-        playPositiveSound();
-      };
-      reader.readAsDataURL(file);
-    } else if (file) {
-      alert('يرجى اختيار ملف PDF فقط.');
-    }
-  };
-
-  const handleTaskSubmission = () => {
+  const handleTaskSubmission = async () => {
     if (!levelTask || !submissionFile) return;
+    
+    setStep(Step.AI_REVIEWING);
+    try {
+      const startupContext = `المشروع: ${user.startupName}, الوصف: ${user.startupDescription}`;
+      const review = await reviewDeliverableAI(levelTask.title, levelTask.description, startupContext);
+      setAiReview(review);
+      setStep(Step.REVIEW_RESULT);
+      playPositiveSound();
+    } catch (e) {
+      setStep(Step.OFFICIAL_TASK);
+      alert("فشل فحص AI، حاول مجدداً.");
+    }
+  };
+
+  const finalizeTask = () => {
+    if (!levelTask || !submissionFile || !aiReview) return;
     onSubmitTask(levelTask.id, {
       fileData: submissionFile.data,
-      fileName: submissionFile.name
+      fileName: submissionFile.name,
+      aiReview: aiReview
     });
     playCelebrationSound();
     setStep(Step.COMPLETED);
   };
 
-  const exportLevelPDF = () => {
-    window.print();
-  };
-
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-slate-950 text-slate-100' : activeTheme.bg + ' text-slate-900'} flex flex-col font-sans transition-colors duration-500 overflow-x-hidden`} dir="rtl">
-      <style>{`
-        .level-header { backdrop-filter: blur(24px); background: ${isDarkMode ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.5)'}; border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
-        .reader-card { transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1); border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
-        .article-pro p { font-size: 1.25rem; line-height: 2.4rem; margin-bottom: 2rem; font-weight: 400; opacity: 0.85; text-align: justify; }
-        .article-pro h4 { font-size: 1.75rem; font-weight: 800; margin-bottom: 1.5rem; color: #2563eb; }
-        .ai-insight-hub { border-right: 4px solid #3b82f6; background: ${isDarkMode ? 'rgba(59, 130, 246, 0.05)' : 'rgba(59, 130, 246, 0.03)'}; }
-        .insight-content { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); max-height: 0; opacity: 0; overflow: hidden; }
-        .insight-content.open { max-height: 500px; opacity: 1; margin-top: 1.5rem; }
-        
-        @media print {
-          .no-print { display: none !important; }
-          .printable-content { display: block !important; padding: 40px; color: black !important; }
-          body { background: white !important; }
-          .level-header { display: none !important; }
-        }
-        .printable-content { display: none; }
-      `}</style>
-
-      {/* Hidden printable area */}
-      <div className="printable-content text-right" dir="rtl">
-         <h1 style={{fontSize: '32px', fontWeight: '900', marginBottom: '20px'}}>محطة: {level.title}</h1>
-         <p style={{fontSize: '14px', color: '#666', marginBottom: '40px'}}>مسرعة الأعمال الافتراضية - رائد الأعمال: {user.name}</p>
-         <div style={{fontSize: '18px', lineHeight: '1.8', whiteSpace: 'pre-wrap'}}>
-            {content}
+    <div className="min-h-screen bg-[#020617] text-white flex flex-col font-sans" dir="rtl">
+      <header className="sticky top-0 z-50 px-8 py-6 border-b border-white/5 bg-[#020617]/80 backdrop-blur-xl flex justify-between items-center">
+         <button onClick={onBack} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white transition-all">← العودة</button>
+         <div className="text-center">
+            <h2 className="text-xl font-black">{level.title}</h2>
+            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Level 0{level.id}</p>
          </div>
-         <hr style={{margin: '40px 0'}} />
-         <footer style={{fontSize: '10px', textAlign: 'center'}}>Generated by Business Developers Accelerator</footer>
-      </div>
-
-      {/* Modern Header */}
-      <header className="level-header sticky top-0 z-[60] px-8 py-5 flex justify-between items-center shadow-lg no-print">
-         <button onClick={onBack} className="p-3 glass rounded-2xl text-slate-400 hover:text-blue-500 transition-all active:scale-90 group">
-            <svg className="w-6 h-6 transform rotate-180 group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-         </button>
-         
-         <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-5">
-               <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(37,99,235,0.4)]">{level.icon}</span>
-               <div>
-                  <h2 className="text-2xl font-black tracking-tight leading-none">{level.title}</h2>
-                  <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1.5">Intelligence Module: LVL 0{level.id}</p>
-               </div>
-            </div>
-            <div className="w-64 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
-               <div className={`h-full ${activeTheme.primary} transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(37,99,235,0.4)]`} style={{ width: `${(step / Step.COMPLETED) * 100}%` }}></div>
-            </div>
-         </div>
-
-         <div className="flex items-center gap-2">
-            {step >= Step.LEARN && (
-               <button onClick={exportLevelPDF} className="p-3 glass rounded-2xl hover:bg-white/10 transition-all text-slate-400 hover:text-blue-600" title="تصدير المحتوى PDF">
-                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-               </button>
-            )}
-            <button onClick={() => { setIsDarkMode(!isDarkMode); localStorage.setItem('level_display_mode', !isDarkMode ? 'dark' : 'light'); }} className="p-3 glass rounded-2xl hover:bg-white/10 transition-all">
-               {isDarkMode ? '☀️' : '🌙'}
-            </button>
-         </div>
+         <div className="w-10"></div>
       </header>
 
-      <main className="flex-1 max-w-4xl mx-auto w-full p-6 md:p-20 flex flex-col items-center no-print">
+      <main className="flex-1 max-w-4xl mx-auto w-full p-10 md:p-20">
         {step === Step.LOADING_CONTENT && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-12 animate-fade-in">
-             <div className="relative w-40 h-40">
-                <div className="absolute inset-0 border-[12px] border-blue-500/5 rounded-full"></div>
-                <div className={`absolute inset-0 border-[12px] ${activeTheme.primary} border-t-transparent rounded-full animate-spin`}></div>
-                <div className="absolute inset-0 flex items-center justify-center text-7xl animate-pulse">{level.icon}</div>
-             </div>
-             <div className="text-center space-y-3">
-                <p className="text-2xl font-black text-slate-800 dark:text-white">جاري تحضير المحتوى الذكي...</p>
-                <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Gemini Generative Engine Active</p>
-             </div>
+          <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-8 animate-fade-in">
+             <div className="w-20 h-20 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+             <p className="text-xl font-black animate-pulse">جاري استدعاء المادة المعرفية...</p>
           </div>
         )}
 
         {step === Step.LEARN && (
-           <div className="w-full space-y-16 animate-fade-in-up">
-              <div className={`p-16 md:p-24 rounded-[4rem] premium-shadow reader-card relative overflow-hidden ${isDarkMode ? 'bg-slate-900/60' : 'bg-white'}`}>
-                  <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-l from-blue-600 to-indigo-500"></div>
-                  
-                  {carouselItems[currentContentPage]?.type === 'content' ? (
-                     <div key={currentContentPage} className="animate-fade-in">
-                        <article className={`article-pro ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} text-right`}>
-                           {carouselItems[currentContentPage].data.split('\n').map((p, i) => {
-                             if (p.startsWith('###')) return <h4 key={i}>{p.replace('###', '')}</h4>;
-                             return <p key={i}>{p}</p>;
-                           })}
-                        </article>
-
-                        <div 
-                          onClick={() => toggleInsight(currentContentPage)}
-                          className={`ai-insight-hub mt-16 p-10 rounded-[2.5rem] cursor-pointer transition-all duration-500 group
-                             ${revealedInsights[currentContentPage] 
-                               ? `${activeTheme.bg} border-blue-400/30 shadow-lg` 
-                               : `hover:bg-blue-600/5 border-transparent`}
-                          `}
-                        >
-                           <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-5">
-                                 <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl shadow-xl text-white group-hover:rotate-6 transition-transform">🤖</div>
-                                 <div>
-                                    <h4 className="text-xl font-black mb-0 text-slate-900 dark:text-white">تحليل المستشار الذكي</h4>
-                                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Contextual AI Insight</p>
-                                 </div>
-                              </div>
-                              <span className={`transition-transform duration-500 text-blue-400 ${revealedInsights[currentContentPage] ? 'rotate-180' : ''}`}>
-                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-                              </span>
-                           </div>
-                           <div className={`insight-content ${revealedInsights[currentContentPage] ? 'open' : ''}`}>
-                              <p className="text-xl font-medium leading-relaxed italic opacity-90 text-slate-600 dark:text-slate-400 pt-4 pr-4">
-                                بناءً على مشروعك في قطاع {user.industry}، نوصيك بالتركيز على تطبيق هذه المبادئ في نموذج العمل الخاص بك لزيادة ميزتك التنافسية. يمكنك تصدير هذه المادة كملف PDF للرجوع إليها لاحقاً.
-                              </p>
-                           </div>
-                        </div>
-                     </div>
-                  ) : (
-                    <div className="text-center space-y-12 py-12 animate-fade-in">
-                       <div className="w-32 h-32 bg-blue-600/10 rounded-[3rem] flex items-center justify-center mx-auto text-7xl shadow-inner animate-float">📥</div>
-                       <div className="space-y-4">
-                          <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">اكتمل المسار المعرفي</h3>
-                          <p className="text-slate-500 text-xl font-medium max-w-xl mx-auto leading-relaxed">أنت الآن جاهز للتطبيق العملي وتسليم مخرج هذه المحطة.</p>
-                          <button onClick={exportLevelPDF} className="inline-flex items-center gap-3 px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-sm hover:scale-105 transition-all shadow-xl">
-                             <span>تحميل المادة العلمية (PDF)</span>
-                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                          </button>
-                       </div>
-                    </div>
-                  )}
+           <div className="space-y-12 animate-fade-in-up">
+              <div className="p-12 md:p-20 bg-slate-900/50 rounded-[4rem] border border-white/5 shadow-2xl relative overflow-hidden">
+                 <div className="absolute top-0 right-0 w-1/2 h-1.5 bg-blue-600"></div>
+                 <article className="prose prose-invert max-w-none text-right">
+                    {carouselItems[currentContentPage]?.data.split('\n').map((p, i) => (
+                      <p key={i} className="text-xl leading-relaxed text-slate-300 font-medium mb-6">{p}</p>
+                    ))}
+                 </article>
               </div>
 
-              {/* Navigation Controls */}
-              <div className="flex justify-between items-center gap-8">
-                  <button disabled={currentContentPage === 0} onClick={() => { setCurrentContentPage(p => p - 1); playPositiveSound(); }} className="flex-1 py-6 glass text-slate-500 rounded-3xl font-black hover:text-blue-600 transition-all disabled:opacity-20 active:scale-95">السابق</button>
-                  <div className="flex gap-4">
-                     {carouselItems.map((_, i) => (
-                       <div key={i} className={`h-2.5 rounded-full transition-all duration-700 ${i === currentContentPage ? 'w-14 bg-blue-600 shadow-[0_0_12px_rgba(37,99,235,0.6)]' : 'w-2.5 bg-slate-200 dark:bg-white/10'}`}></div>
-                     ))}
-                  </div>
-                  {currentContentPage < carouselItems.length - 1 ? (
-                    <button onClick={() => { setCurrentContentPage(p => p + 1); playPositiveSound(); }} className={`flex-[2] py-6 text-white rounded-3xl font-black shadow-2xl transition-all hover:brightness-110 active:scale-95 ${activeTheme.primary}`}>المتابعة</button>
-                  ) : (
-                    <button onClick={() => { startQuiz(); playPositiveSound(); }} className="flex-[2] py-6 bg-slate-900 text-white rounded-3xl font-black shadow-2xl animate-pulse active:scale-95">بدء الاختبار المعرفي ✏️</button>
-                  )}
+              <div className="flex justify-between items-center gap-6">
+                 <button disabled={currentContentPage === 0} onClick={() => setCurrentContentPage(p => p - 1)} className="flex-1 py-5 bg-white/5 rounded-2xl font-black disabled:opacity-20 transition-all">السابق</button>
+                 <div className="flex gap-2">
+                    {carouselItems.map((_, i) => (
+                      <div key={i} className={`h-1.5 rounded-full transition-all ${i === currentContentPage ? 'w-10 bg-blue-600' : 'w-2 bg-slate-800'}`}></div>
+                    ))}
+                 </div>
+                 {currentContentPage < carouselItems.length - 1 ? (
+                   <button onClick={() => setCurrentContentPage(p => p + 1)} className="flex-[2] py-5 bg-blue-600 rounded-2xl font-black">المتابعة</button>
+                 ) : (
+                   <button onClick={startQuiz} className="flex-[2] py-5 bg-emerald-600 rounded-2xl font-black animate-pulse">دخول الاختبار المعرفي</button>
+                 )}
               </div>
-           </div>
-        )}
-
-        {step === Step.LOADING_QUIZ && (
-           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 animate-fade-in">
-              <div className="w-20 h-20 border-[6px] border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-              <p className="text-xl font-black text-slate-500">جاري صياغة أسئلة التقييم الذكية...</p>
            </div>
         )}
 
         {step === Step.QUIZ && (
-           <div className="w-full max-w-2xl space-y-12 animate-fade-in-up">
-              <div className="text-center space-y-3">
-                 <h3 className="text-4xl font-black tracking-tight">تقييم استيعاب المحطة</h3>
-                 <p className="text-slate-500 font-medium">أجب بشكل صحيح للانتقال لمرحلة تسليم المخرج التنفيذي</p>
+           <div className="space-y-10 animate-fade-in-up">
+              <h3 className="text-3xl font-black text-center mb-10">تقييم استيعاب المحطة</h3>
+              {quizQuestions.map((q, qIdx) => (
+                <div key={qIdx} className="p-10 bg-slate-900 border border-white/5 rounded-[2.5rem]">
+                   <h4 className="text-xl font-bold mb-8">{qIdx + 1}. {q.text}</h4>
+                   <div className="grid grid-cols-1 gap-4">
+                      {q.options.map((opt, oIdx) => (
+                        <button 
+                          key={oIdx}
+                          onClick={() => { const a = [...quizAnswers]; a[qIdx] = oIdx; setQuizAnswers(a); playPositiveSound(); }}
+                          className={`p-5 text-right rounded-2xl border-2 transition-all ${quizAnswers[qIdx] === oIdx ? 'border-blue-600 bg-blue-600/10 text-blue-400' : 'border-white/5 hover:border-white/10'}`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                   </div>
+                </div>
+              ))}
+              <button onClick={handleQuizSubmit} disabled={quizAnswers.includes(-1)} className="w-full py-6 bg-blue-600 rounded-2xl font-black shadow-xl disabled:opacity-50">تأكيد الإجابات</button>
+           </div>
+        )}
+
+        {step === Step.OFFICIAL_TASK && (
+           <div className="space-y-12 animate-fade-in-up">
+              <div className="text-center space-y-4">
+                 <h3 className="text-4xl font-black">تسليم المخرج التنفيذي</h3>
+                 <p className="text-slate-500">ارفع ملف الـ PDF الخاص بهذه المرحلة لمراجعته من قبل الموجه الرقمي.</p>
               </div>
-              <div className="space-y-10">
-                 {quizQuestions.map((q, qIdx) => (
-                    <div key={q.id} className={`p-12 rounded-[3.5rem] premium-shadow ${isDarkMode ? 'bg-slate-900/60' : 'bg-white'}`}>
-                       <div className="flex items-center gap-4 mb-10">
-                          <span className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xs">{qIdx + 1}</span>
-                          <h4 className="text-2xl font-black text-slate-800 dark:text-white leading-snug">{q.text}</h4>
-                       </div>
-                       <div className="grid grid-cols-1 gap-4">
-                          {q.options.map((opt, oIdx) => (
-                             <button 
-                                key={oIdx} 
-                                onClick={() => { const a = [...quizAnswers]; a[qIdx] = oIdx; setQuizAnswers(a); playPositiveSound(); }}
-                                className={`p-6 rounded-2xl border-2 text-right font-bold transition-all duration-300 relative overflow-hidden group
-                                  ${quizAnswers[qIdx] === oIdx 
-                                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-600/10 text-blue-700 dark:text-blue-400 shadow-lg' 
-                                    : 'border-slate-100 dark:border-white/5 hover:border-blue-200 dark:hover:border-blue-500/30'}`}
-                             >
-                                <div className={`absolute top-0 right-0 w-1.5 h-full transition-all ${quizAnswers[qIdx] === oIdx ? 'bg-blue-600' : 'bg-transparent group-hover:bg-blue-200'}`}></div>
-                                {opt}
-                             </button>
-                          ))}
-                       </div>
-                    </div>
-                 ))}
-              </div>
-              <button 
-                 onClick={handleQuizSubmit}
-                 disabled={quizAnswers.includes(-1)}
-                 className="w-full py-7 bg-blue-600 text-white rounded-[2.2rem] font-black text-xl shadow-2xl shadow-blue-500/30 disabled:opacity-30 active:scale-95 transition-all hover:bg-blue-700"
+              
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full h-80 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center cursor-pointer transition-all
+                  ${submissionFile ? 'bg-emerald-600/10 border-emerald-600' : 'bg-white/5 border-white/10 hover:border-blue-500/30'}
+                `}
               >
-                 تأكيد الإجابات والمتابعة
+                 <input type="file" ref={fileInputRef} className="hidden" accept=".pdf" onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) setSubmissionFile({ data: 'file_simulated', name: f.name });
+                 }} />
+                 {submissionFile ? (
+                    <div className="text-center">
+                       <span className="text-6xl mb-4 block">📄</span>
+                       <p className="font-black text-emerald-400">{submissionFile.name}</p>
+                    </div>
+                 ) : (
+                    <div className="text-center">
+                       <span className="text-6xl mb-6 block opacity-20">📂</span>
+                       <p className="font-black text-slate-400">انقر لرفع ملف المخرج (PDF)</p>
+                    </div>
+                 )}
+              </div>
+
+              <button onClick={handleTaskSubmission} disabled={!submissionFile} className="w-full py-6 bg-slate-900 text-white rounded-2xl font-black border border-white/10 shadow-2xl hover:bg-blue-600 transition-all disabled:opacity-30">
+                 إرسال للمراجعة الذكية (AI Review)
               </button>
            </div>
         )}
 
-        {step === Step.OFFICIAL_TASK && levelTask && (
-           <div className="w-full max-w-3xl space-y-12 animate-fade-in-up">
-              <div className={`p-14 md:p-20 rounded-[4rem] premium-shadow reader-card relative overflow-hidden ${isDarkMode ? 'bg-slate-900/60' : 'bg-white'}`}>
-                 <div className="flex justify-between items-start mb-12">
-                    <div>
-                       <span className={`inline-flex items-center gap-3 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-500/20 bg-blue-500/5 text-blue-600`}>
-                          المخرج التنفيذي المطلوب
-                       </span>
-                       <h3 className="text-5xl font-black mt-6 leading-tight tracking-tight">{levelTask.title}</h3>
-                    </div>
-                    <div className="w-24 h-24 bg-blue-600 rounded-[2.5rem] flex items-center justify-center text-5xl shadow-xl text-white transform -rotate-6">📝</div>
-                 </div>
-                 
-                 <div className="space-y-10">
-                    <div className="bg-slate-50 dark:bg-white/5 p-10 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-inner">
-                       <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">وصف المهمة التنفيذية لهذه المحطة:</h4>
-                       <p className="text-xl font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic opacity-90">{levelTask.description}</p>
-                    </div>
+        {step === Step.AI_REVIEWING && (
+           <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-10 animate-fade-in">
+              <div className="relative">
+                 <div className="w-32 h-32 border-8 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                 <div className="absolute inset-0 flex items-center justify-center text-4xl animate-pulse">🤖</div>
+              </div>
+              <div className="text-center space-y-2">
+                 <h4 className="text-2xl font-black">الموجه الرقمي يراجع ملفك...</h4>
+                 <p className="text-slate-500">يتم تحليل المحتوى، الجودة، ومدى مطابقة المعايير.</p>
+              </div>
+           </div>
+        )}
 
-                    <div className="space-y-6">
-                       <div className="flex justify-between items-center px-4">
-                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">PDF Submission Portal</label>
-                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-600/10 px-3 py-1 rounded-lg">المتطلب: ملف PDF حصراً</span>
-                       </div>
-                       
-                       <div 
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`w-full h-72 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-500
-                          ${submissionFile ? 'bg-emerald-500/5 border-emerald-500' : (isDarkMode ? 'bg-white/5 border-white/10 hover:border-blue-500/50' : 'bg-slate-50 border-slate-200 hover:border-blue-500/50')}
-                        `}
-                       >
-                          <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf" onChange={handleFileUpload} />
-                          {submissionFile ? (
-                            <>
-                               <span className="text-6xl mb-6">📄</span>
-                               <p className="font-black text-emerald-500 text-xl">{submissionFile.name}</p>
-                               <p className="text-sm text-slate-400 mt-2">انقر لتغيير الملف المختار</p>
-                            </>
-                          ) : (
-                            <>
-                               <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center text-white text-4xl shadow-xl mb-6 transform group-hover:scale-110 transition-transform">
-                                 <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                               </div>
-                               <p className="font-black text-slate-400 text-lg">ارفع مخرجك النهائي بصيغة PDF</p>
-                               <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest">Maximum File Size: 5MB</p>
-                            </>
-                          )}
-                       </div>
+        {step === Step.REVIEW_RESULT && aiReview && (
+           <div className="space-y-12 animate-fade-in-up">
+              <div className="bg-slate-900 p-12 rounded-[4rem] border border-white/5 space-y-10">
+                 <div className="flex justify-between items-center">
+                    <h3 className="text-2xl font-black">تقرير الموجه الرقمي</h3>
+                    <div className={`px-6 py-2 rounded-full font-black text-sm ${aiReview.readinessScore >= 75 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                       مؤشر الجاهزية: {aiReview.readinessScore}%
                     </div>
                  </div>
 
-                 <div className="mt-16 flex flex-col sm:flex-row gap-4">
-                    <button onClick={onBack} className="flex-1 py-6 glass text-slate-500 rounded-[2.2rem] font-black text-sm hover:text-slate-900 transition-all active:scale-95">إكمال التسليم لاحقاً</button>
-                    <button 
-                       onClick={handleTaskSubmission}
-                       disabled={!submissionFile}
-                       className="flex-[2.5] py-6 bg-slate-900 text-white rounded-[2.2rem] font-black text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
-                    >
-                       اعتماد المخرج وإنهاء المحطة 🚀
-                    </button>
+                 <div className="bg-white/5 p-8 rounded-[2rem] border border-white/5">
+                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-4">التقييم النقدي</p>
+                    <p className="text-xl font-medium leading-relaxed italic">"{aiReview.criticalFeedback}"</p>
                  </div>
+
+                 <div className="space-y-4">
+                    <p className="font-black text-blue-400 text-sm uppercase">الخطوات المقترحة للتطوير:</p>
+                    <ul className="space-y-3">
+                       {aiReview.suggestedNextSteps.map((s, i) => (
+                         <li key={i} className="flex gap-4 items-center text-sm font-bold text-slate-300">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            {s}
+                         </li>
+                       ))}
+                    </ul>
+                 </div>
+
+                 {aiReview.isReadyForHumanMentor && (
+                   <div className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] text-center">
+                      <p className="text-emerald-400 font-black">✨ ممتاز! مخرجك مؤهل لمراجعة مرشد بشري حقيقي.</p>
+                   </div>
+                 )}
+              </div>
+
+              <div className="flex gap-4">
+                 <button onClick={() => setStep(Step.OFFICIAL_TASK)} className="flex-1 py-5 bg-white/5 rounded-2xl font-black">تعديل المخرج</button>
+                 <button onClick={finalizeTask} className="flex-[2] py-5 bg-blue-600 rounded-2xl font-black shadow-xl">اعتماد وإنهاء المحطة</button>
               </div>
            </div>
         )}
 
         {step === Step.COMPLETED && (
-           <div className="flex flex-col items-center text-center space-y-16 animate-fade-in-up py-12">
-              <div className="relative">
-                 <div className="w-48 h-48 bg-emerald-500/10 rounded-full flex items-center justify-center text-9xl animate-bounce shadow-inner border-[12px] border-white dark:border-slate-800">✨</div>
-                 <div className="absolute -top-6 -right-6 w-20 h-20 bg-amber-400 rounded-3xl flex items-center justify-center text-white text-4xl shadow-2xl transform rotate-12 ring-8 ring-white dark:ring-slate-950">🏆</div>
+           <div className="text-center space-y-12 animate-fade-in-up py-10">
+              <div className="w-40 h-40 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-9xl shadow-inner animate-bounce">✨</div>
+              <div className="space-y-4">
+                 <h2 className="text-6xl font-black tracking-tighter">محطة مكتملة!</h2>
+                 <p className="text-slate-500 text-2xl font-medium">لقد أثبت جديتك وكفاءتك. تم فتح المحطة التالية لك.</p>
               </div>
-              <div className="space-y-6">
-                 <h2 className="text-7xl font-black text-slate-900 dark:text-white tracking-tighter">إنجاز رائد!</h2>
-                 <p className="text-slate-500 dark:text-slate-400 text-2xl font-medium max-w-xl mx-auto leading-relaxed">
-                    لقد أتممت بنجاح محطة "{level.title}". تم حفظ مخرج الـ PDF في سجلات مشروعك وفتح المحطة التالية في مسار النمو.
-                 </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-8">
-                 <button onClick={onComplete} className="px-20 py-7 bg-blue-600 text-white rounded-[2.5rem] font-black text-2xl shadow-2xl shadow-blue-500/30 hover:bg-blue-700 hover:scale-105 transition-all active:scale-95">العودة للوحة القيادة</button>
-                 {onRequestMentorship && (
-                    <button onClick={onRequestMentorship} className="px-12 py-7 glass border-2 border-blue-600/20 text-blue-600 dark:text-blue-400 rounded-[2.5rem] font-black text-2xl hover:bg-blue-600/5 transition-all active:scale-95">طلب استشارة خاصة 🤝</button>
-                 )}
-              </div>
+              <button onClick={onComplete} className="px-20 py-6 bg-blue-600 rounded-[2.5rem] font-black text-2xl shadow-2xl hover:bg-blue-700 transition-all">العودة للوحة القيادة</button>
            </div>
         )}
       </main>

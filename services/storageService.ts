@@ -1,5 +1,5 @@
 
-import { UserRecord, StartupRecord, ProgressRecord, ActivityLogRecord, UserProfile, TaskRecord, TASKS_CONFIG, ServiceRequest, ProgramRating } from '../types';
+import { UserRecord, StartupRecord, ProgressRecord, ActivityLogRecord, UserProfile, TaskRecord, TASKS_CONFIG, ServiceRequest, ProgramRating, Partner } from '../types';
 
 const DB_KEYS = {
   USERS: 'db_users',
@@ -27,7 +27,8 @@ export const storageService = {
       birthDate: profile.birthDate || '',
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
-      settings: { theme: 'blue', notifications: true }
+      settings: { theme: 'blue', notifications: true },
+      founderBio: profile.founderBio || ''
     };
 
     const newStartup: StartupRecord = {
@@ -43,7 +44,11 @@ export const storageService = {
       metrics: { readiness: 40, analysis: 40, tech: 40, personality: 50, strategy: 40, ethics: 90 },
       aiClassification: 'Yellow',
       aiOpinion: 'تحت التقييم',
-      status: 'PENDING'
+      status: 'PENDING',
+      startupBio: profile.startupBio || '',
+      website: profile.website || '',
+      linkedin: profile.linkedin || '',
+      partners: profile.partners || []
     };
 
     const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
@@ -94,6 +99,15 @@ export const storageService = {
     }
   },
 
+  updateStartup: (projectId: string, data: Partial<StartupRecord>) => {
+    const startups: StartupRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
+    const index = startups.findIndex(s => s.projectId === projectId);
+    if (index > -1) {
+      startups[index] = { ...startups[index], ...data };
+      localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify(startups));
+    }
+  },
+
   seedDemoAccount: (): string => {
     const demoEmail = 'demo@bizdev.ai';
     const users: UserRecord[] = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
@@ -112,7 +126,8 @@ export const storageService = {
       birthDate: '1994-01-01',
       createdAt: new Date().toISOString(),
       lastLogin: new Date().toISOString(),
-      settings: { theme: 'indigo', notifications: true }
+      settings: { theme: 'indigo', notifications: true },
+      founderBio: 'رائد أعمال شغوف بالتقنية والابتكار والتوسع العالمي.'
     };
 
     const newStartup: StartupRecord = {
@@ -128,7 +143,11 @@ export const storageService = {
       metrics: { readiness: 85, analysis: 78, tech: 92, personality: 88, strategy: 70, ethics: 95 },
       aiClassification: 'Green',
       aiOpinion: 'مشروع متميز ذو جدوى اقتصادية عالية.',
-      status: 'APPROVED'
+      status: 'APPROVED',
+      startupBio: 'نهدف لتمكين المزارعين بأحدث تقنيات الذكاء الاصطناعي لزيادة الإنتاجية.',
+      website: 'https://smartfarm-demo.io',
+      linkedin: 'https://linkedin.com/company/smartfarm',
+      partners: [{ name: 'علي حسن', role: 'شريك تقني' }]
     };
 
     localStorage.setItem(DB_KEYS.USERS, JSON.stringify([...users, newUser]));
@@ -205,7 +224,6 @@ export const storageService = {
       };
       localStorage.setItem(DB_KEYS.TASKS, JSON.stringify(tasks));
       
-      // Auto-unlock logic if needed
       const currentLevelId = tasks[index].levelId;
       storageService.updateProgress(uid, currentLevelId, { status: 'COMPLETED' });
     }

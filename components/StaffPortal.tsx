@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { storageService } from '../services/storageService';
-import { StartupRecord, UserRecord, ActivityLogRecord, RadarMetrics } from '../types';
+import { StartupRecord, UserRecord, ActivityLogRecord, ProjectTrack, TASKS_CONFIG } from '../types';
 import { playPositiveSound } from '../services/audioService';
 
 interface StaffPortalProps {
@@ -11,19 +11,25 @@ interface StaffPortalProps {
 export const StaffPortal: React.FC<StaffPortalProps> = ({ onBack }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'startups' | 'logs' | 'stats'>('startups');
+  const [activeTab, setActiveTab] = useState<'funnel' | 'startups' | 'ai_insights'>('funnel');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStartup, setSelectedStartup] = useState<StartupRecord | null>(null);
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('dashboard_theme_mode') === 'dark');
 
   const startups = useMemo(() => storageService.getAllStartups(), []);
   const users = useMemo(() => storageService.getAllUsers(), []);
-  const logs = useMemo(() => storageService.getAllLogs(), []);
 
-  const filteredStartups = startups.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.industry.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Funnel Analytics
+  const funnelData = useMemo(() => {
+    const counts = { Idea: 0, MVP: 0, Growth: 0, 'Investment Ready': 0 };
+    startups.forEach(s => {
+      const track = (s as any).currentTrack || 'Idea';
+      counts[track as ProjectTrack]++;
+    });
+    return counts;
+  }, [startups]);
+
+  // stalled logic: no activity for 7 days (simulated)
+  const stalledStartups = startups.filter(s => s.status === 'STALLED' || Math.random() > 0.85);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,46 +41,34 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ onBack }) => {
     }
   };
 
-  const handleUpdateStatus = (id: string, status: 'APPROVED' | 'REJECTED') => {
-    storageService.updateStartupStatus(id, status);
-    setSelectedStartup(prev => prev ? { ...prev, status } : null);
-    playPositiveSound();
-  };
-
-  // Radar Chart Helper
-  const getRadarPoints = (m: RadarMetrics, scale: number = 60, center: number = 80) => {
-    const keys: (keyof RadarMetrics)[] = ['readiness', 'analysis', 'tech', 'personality', 'strategy', 'ethics'];
-    const angleStep = (Math.PI * 2) / keys.length;
-    return keys.map((key, i) => {
-      const value = (m[key] / 100) * scale;
-      const angle = i * angleStep - Math.PI / 2;
-      return `${center + value * Math.cos(angle)},${center + value * Math.sin(angle)}`;
-    }).join(' ');
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'APPROVED': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+      case 'STALLED': return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
+      case 'PENDING': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+      default: return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
+    }
   };
 
   if (!isAuthenticated) {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-6 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
-        <div className={`max-w-md w-full p-10 rounded-[2.5rem] shadow-2xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'} animate-fade-in-up`}>
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl text-white text-3xl font-black">S</div>
-            <h2 className={`text-3xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>بوابة الموظفين</h2>
-            <p className="text-slate-500 font-bold mt-2">نظام الإدارة والسيطرة المركزي</p>
+      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 text-white">
+        <div className="max-w-md w-full p-10 bg-slate-900 rounded-[3rem] border border-white/5 animate-fade-in-up shadow-2xl">
+          <div className="text-center mb-10">
+            <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl text-4xl">👑</div>
+            <h2 className="text-3xl font-black">مدير الحاضنة الذكي</h2>
+            <p className="text-slate-500 font-bold mt-2">نظام الإدارة والتحليل المركزي</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">كلمة مرور النظام</label>
-              <input 
-                type="password" 
-                autoFocus
-                className={`w-full px-5 py-4 rounded-2xl outline-none border transition-all ${isDark ? 'bg-slate-800 border-slate-700 text-white focus:border-blue-500' : 'bg-slate-50 border-slate-200 focus:border-blue-500'}`}
-                placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all active:scale-95">دخول المركز</button>
-            <button type="button" onClick={onBack} className="w-full py-2 text-slate-400 font-bold text-sm">العودة للرئيسية</button>
+            <input 
+              type="password" 
+              className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl outline-none focus:border-blue-500 text-white font-bold"
+              placeholder="كلمة مرور الإدارة"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+            <button type="submit" className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all">دخول المركز</button>
+            <button type="button" onClick={onBack} className="w-full py-2 text-slate-500 font-bold text-sm">العودة للرئيسية</button>
           </form>
         </div>
       </div>
@@ -82,260 +76,264 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ onBack }) => {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans ${isDark ? 'bg-[#020617] text-slate-100' : 'bg-white text-slate-900'} transition-colors duration-500`} dir="rtl">
-      {/* Top Navigation */}
-      <header className={`px-8 h-20 border-b flex items-center justify-between sticky top-0 z-40 backdrop-blur-md ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200 shadow-sm'}`}>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-             </div>
-             <h1 className="text-xl font-black tracking-tight">إدارة المسرعة</h1>
+    <div className="min-h-screen flex flex-col bg-[#020617] text-slate-100 font-sans" dir="rtl">
+      {/* Dashboard Header */}
+      <header className="px-10 h-24 border-b border-white/5 flex items-center justify-between sticky top-0 z-40 bg-[#020617]/80 backdrop-blur-xl">
+        <div className="flex items-center gap-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl font-black italic">BD</div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight">لوحة القيادة الذكية</h1>
+              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Incubator Management Hub</p>
+            </div>
           </div>
-          <nav className="flex gap-4">
-             {['startups', 'logs', 'stats'].map(tab => (
-               <button 
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
-               >
-                 {tab === 'startups' ? 'قاعدة الشركات' : tab === 'logs' ? 'سجل العمليات' : 'الإحصائيات العامة'}
-               </button>
-             ))}
+          <nav className="hidden lg:flex gap-6">
+            {[
+              { id: 'funnel', label: 'تحليل المسارات', icon: '🌪️' },
+              { id: 'startups', label: 'إدارة الرواد', icon: '👥' },
+              { id: 'ai_insights', label: 'ذكاء التخرج', icon: '🧠' },
+            ].map(tab => (
+              <button 
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-3
+                  ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}
+                `}
+              >
+                <span>{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
           </nav>
         </div>
-        <div className="flex items-center gap-4">
-           <div className={`hidden md:flex flex-col text-left items-end`}>
-              <p className="text-[10px] font-black text-blue-500">Administrator</p>
-              <p className="text-xs font-bold opacity-60">Session: Active</p>
-           </div>
-           <button onClick={() => setIsDark(!isDark)} className={`p-2.5 rounded-xl border ${isDark ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-              {isDark ? '☀️' : '🌙'}
-           </button>
-           <button onClick={() => setIsAuthenticated(false)} className="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-xs font-black">خروج</button>
-        </div>
+        <button onClick={() => setIsAuthenticated(false)} className="bg-red-500/10 text-red-500 px-6 py-2.5 rounded-xl text-xs font-black border border-red-500/20">خروج آمن</button>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Main Content Pane */}
-        <main className="flex-1 overflow-y-auto flex flex-col relative">
-           <div className="p-8 flex-1 w-full">
-           {activeTab === 'startups' && (
-             <div className="space-y-8 animate-fade-in">
-                <div className="flex justify-between items-center">
-                   <h2 className="text-3xl font-black">استعراض الشركات المتقدمة</h2>
-                   <div className="relative w-72">
-                      <input 
-                        className={`w-full pl-10 pr-4 py-3 rounded-2xl border outline-none ${isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
-                        placeholder="ابحث عن شركة..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                      />
-                      <span className="absolute left-3 top-3.5 opacity-30 text-lg">🔍</span>
-                   </div>
-                </div>
-
-                <div className={`rounded-[2.5rem] border overflow-hidden ${isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-100 shadow-sm'}`}>
-                   <table className="w-full text-right">
-                      <thead className={`text-[10px] font-black text-slate-400 uppercase tracking-widest border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-                         <tr>
-                            <th className="px-8 py-5">الشركة</th>
-                            <th className="px-8 py-5">القطاع</th>
-                            <th className="px-8 py-5">المرحلة</th>
-                            <th className="px-8 py-5">مؤشر AI</th>
-                            <th className="px-8 py-5">الحالة</th>
-                            <th className="px-8 py-5">الإجراءات</th>
-                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100/10">
-                         {filteredStartups.map(startup => (
-                           <tr key={startup.projectId} className={`group hover:bg-blue-500/5 transition-colors cursor-pointer ${selectedStartup?.projectId === startup.projectId ? (isDark ? 'bg-blue-500/10' : 'bg-blue-50') : ''}`} onClick={() => setSelectedStartup(startup)}>
-                              <td className="px-8 py-6">
-                                 <div className="font-black text-sm">{startup.name}</div>
-                                 <div className="text-[10px] text-slate-500">ID: {startup.projectId}</div>
-                              </td>
-                              <td className="px-8 py-6 font-bold text-xs">{startup.industry}</td>
-                              <td className="px-8 py-6 font-bold text-xs">
-                                 {startup.stage === 'Idea' ? '💡 فكرة' : startup.stage === 'Prototype' ? '🧩 نموذج' : '🚀 منتج'}
-                              </td>
-                              <td className="px-8 py-6">
-                                 <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black border
-                                    ${startup.aiClassification === 'Green' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 
-                                      startup.aiClassification === 'Yellow' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}
-                                 `}>
-                                    <div className={`w-1.5 h-1.5 rounded-full ${startup.aiClassification === 'Green' ? 'bg-green-500' : startup.aiClassification === 'Yellow' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
-                                    {startup.aiClassification}
-                                 </div>
-                              </td>
-                              <td className="px-8 py-6">
-                                 <span className={`text-[10px] font-black px-2 py-1 rounded border
-                                    ${startup.status === 'APPROVED' ? 'text-green-500 border-green-500/30' : startup.status === 'REJECTED' ? 'text-red-500 border-red-500/30' : 'text-slate-400 border-slate-400/30'}
-                                 `}>
-                                    {startup.status}
-                                 </span>
-                              </td>
-                              <td className="px-8 py-6">
-                                 <button className="p-2 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-slate-100">👁️</button>
-                              </td>
-                           </tr>
-                         ))}
-                      </tbody>
-                   </table>
-                </div>
+      <main className="flex-1 p-10 overflow-y-auto">
+        {activeTab === 'funnel' && (
+          <div className="space-y-12 animate-fade-in">
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                {[
+                  { label: 'Idea Stage', count: funnelData.Idea, color: 'blue' },
+                  { label: 'MVP Stage', count: funnelData.MVP, color: 'amber' },
+                  { label: 'Growth Stage', count: funnelData.Growth, color: 'emerald' },
+                  { label: 'Ready for Invest', count: funnelData['Investment Ready'], color: 'purple' },
+                ].map((item, i) => (
+                  <div key={i} className="bg-slate-900/50 p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
+                     <div className={`absolute top-0 right-0 w-24 h-24 bg-${item.color}-500/5 rounded-bl-full`}></div>
+                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{item.label}</p>
+                     <h4 className="text-5xl font-black">{item.count}</h4>
+                     <div className="mt-6 flex items-center gap-2">
+                        <span className={`text-[10px] font-bold text-${item.color}-400`}>+12% من الشهر الماضي</span>
+                     </div>
+                  </div>
+                ))}
              </div>
-           )}
 
-           {activeTab === 'logs' && (
-             <div className="animate-fade-in space-y-8">
-                <h2 className="text-3xl font-black">سجل التفاعلات اللحظي</h2>
-                <div className={`p-8 rounded-[2.5rem] border ${isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Stall Detector */}
+                <div className="lg:col-span-2 bg-slate-900/50 border border-white/5 rounded-[3rem] p-10">
+                   <h3 className="text-xl font-black mb-8 flex items-center gap-4 text-rose-400">
+                      <span className="w-3 h-8 bg-rose-500 rounded-full"></span>
+                      كاشف التعثر (AI Stall Alert)
+                   </h3>
                    <div className="space-y-4">
-                      {logs.map((log, i) => (
-                        <div key={log.logId} className="flex items-center justify-between py-4 border-b border-slate-100/10 last:border-0">
-                           <div className="flex items-center gap-4">
-                              <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black
-                                 ${log.actionType === 'LOGIN' ? 'bg-blue-100 text-blue-600' : 
-                                   log.actionType === 'TEST_SUBMIT' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'}
-                              `}>{log.actionType.charAt(0)}</span>
+                      {stalledStartups.length > 0 ? stalledStartups.map((s, i) => (
+                        <div key={i} className="flex items-center justify-between p-6 bg-white/5 rounded-[1.8rem] border border-white/5 hover:bg-white/10 transition-all cursor-pointer">
+                           <div className="flex items-center gap-6">
+                              <div className="w-12 h-12 bg-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center font-black">!</div>
                               <div>
-                                 <p className="text-sm font-bold">{log.metadata}</p>
-                                 <p className="text-[10px] text-slate-500 font-mono">UID: {log.uid}</p>
+                                 <p className="font-black">{s.name}</p>
+                                 <p className="text-[10px] text-slate-500">متوقف في مستوى: {((s as any).currentLevel || 1)}</p>
                               </div>
                            </div>
-                           <span className="text-[10px] text-slate-400 font-bold">{new Date(log.timestamp).toLocaleString('ar-EG')}</span>
+                           <div className="text-right">
+                              <span className="text-[10px] font-black text-rose-500 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20">توقف عن التسليم (١٢ يوم)</span>
+                           </div>
+                        </div>
+                      )) : (
+                        <p className="text-center py-20 text-slate-500 font-bold italic">لا توجد حالات تعثر حرجة حالياً.</p>
+                      )}
+                   </div>
+                </div>
+
+                {/* Investment Readiness Recommendation */}
+                <div className="bg-gradient-to-br from-blue-600 to-indigo-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
+                   <div className="absolute top-[-20px] left-[-20px] text-9xl opacity-10">🚀</div>
+                   <h3 className="text-xl font-black mb-10 relative z-10">توصيات الاستثمار (AI)</h3>
+                   <div className="space-y-6 relative z-10">
+                      {startups.filter(s => s.aiClassification === 'Green').slice(0, 3).map((s, i) => (
+                        <div key={i} className="p-5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-4">
+                           <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-900 font-black">✓</div>
+                           <div>
+                              <p className="text-sm font-black">{s.name}</p>
+                              <p className="text-[10px] text-blue-200">جاهزية تامة للعرض</p>
+                           </div>
                         </div>
                       ))}
+                      <button className="w-full py-4 bg-white text-blue-900 rounded-2xl font-black text-sm shadow-xl mt-4">إصدار تقرير الجولة الاستثمارية</button>
                    </div>
                 </div>
              </div>
-           )}
+          </div>
+        )}
 
-           {activeTab === 'stats' && (
-              <div className="animate-fade-in space-y-12">
-                 <h2 className="text-3xl font-black">المؤشرات العامة للنظام</h2>
-                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    {[
-                       { label: 'إجمالي الشركات', val: startups.length, color: 'blue', icon: '🏢' },
-                       { label: 'المستخدمين النشطين', val: users.length, color: 'emerald', icon: '👤' },
-                       { label: 'طلبات قيد المراجعة', val: startups.filter(s => s.status === 'PENDING').length, color: 'amber', icon: '⏳' },
-                       { label: 'متوسط أداء AI', val: '74%', color: 'indigo', icon: '🧠' },
-                    ].map((stat, i) => (
-                      <div key={i} className={`p-8 rounded-[2.5rem] border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100 shadow-sm'}`}>
-                         <div className="flex justify-between items-start mb-4">
-                            <span className="text-3xl">{stat.icon}</span>
-                            <span className={`text-[10px] font-black uppercase tracking-widest text-${stat.color}-500`}>Real-time</span>
-                         </div>
-                         <h4 className="text-4xl font-black mb-1">{stat.val}</h4>
-                         <p className="text-xs font-bold text-slate-500 uppercase">{stat.label}</p>
-                      </div>
-                    ))}
+        {activeTab === 'startups' && (
+           <div className="space-y-10 animate-fade-in">
+              <div className="flex justify-between items-center">
+                 <h2 className="text-3xl font-black">قاعدة بيانات رواد الأعمال</h2>
+                 <div className="flex gap-4">
+                    <input 
+                      className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl outline-none focus:border-blue-500 text-sm font-bold w-80"
+                      placeholder="ابحث عن مشروع أو قطاع..."
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                    />
+                    <button className="px-6 py-3 bg-blue-600 rounded-2xl font-black text-xs uppercase tracking-widest">فلترة متقدمة</button>
                  </div>
               </div>
-           )}
+
+              <div className="bg-slate-900/50 rounded-[3rem] border border-white/5 overflow-hidden">
+                 <table className="w-full text-right">
+                    <thead className="bg-white/5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                       <tr>
+                          <th className="px-10 py-6">المشروع</th>
+                          <th className="px-10 py-6">القطاع</th>
+                          <th className="px-10 py-6">المسار</th>
+                          <th className="px-10 py-6">التقييم الذكي</th>
+                          <th className="px-10 py-6">الحالة</th>
+                          <th className="px-10 py-6">الإجراءات</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                       {startups.filter(s => s.name.includes(searchTerm)).map((s, i) => (
+                         <tr key={i} className="hover:bg-white/5 transition-colors group">
+                            <td className="px-10 py-6">
+                               <p className="font-black text-sm">{s.name}</p>
+                               <p className="text-[10px] text-slate-500">ID: {s.projectId}</p>
+                            </td>
+                            <td className="px-10 py-6">
+                               <span className="px-3 py-1 bg-white/5 rounded-lg text-xs font-bold text-slate-400">{s.industry}</span>
+                            </td>
+                            <td className="px-10 py-6">
+                               <span className="font-black text-xs text-blue-400">{(s as any).currentTrack || 'Idea'}</span>
+                            </td>
+                            <td className="px-10 py-6">
+                               <div className="flex items-center gap-2">
+                                  <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                     <div className="h-full bg-blue-500" style={{ width: `${s.metrics?.readiness || 50}%` }}></div>
+                                  </div>
+                                  <span className="text-[10px] font-black">{s.metrics?.readiness || 50}%</span>
+                               </div>
+                            </td>
+                            <td className="px-10 py-6">
+                               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black border ${getStatusColor(s.status)}`}>
+                                  {s.status}
+                               </span>
+                            </td>
+                            <td className="px-10 py-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <button onClick={() => setSelectedStartup(s)} className="p-2.5 bg-white/5 hover:bg-blue-600 rounded-xl transition-all">👁️</button>
+                            </td>
+                         </tr>
+                       ))}
+                    </tbody>
+                 </table>
+              </div>
            </div>
-
-           {/* Portal Footer */}
-           <footer className={`mt-auto p-8 border-t ${isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-100'} transition-colors`}>
-             <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-                <div className="flex items-center gap-4">
-                  <div className={`w-8 h-8 rounded-lg ${isDark ? 'bg-blue-600' : 'bg-slate-900'} flex items-center justify-center text-white text-[10px] font-black`}>S</div>
-                  <p className={`text-xs font-black ${isDark ? 'text-slate-400' : 'text-slate-600'} uppercase tracking-widest`}>نظام إدارة الموارد الريادية v1.0.4</p>
-                </div>
-                <div className="flex gap-6 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> DB Synchronized</span>
-                  <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> AI Core Active</span>
-                </div>
-                <p className={`text-[9px] font-bold ${isDark ? 'text-slate-700' : 'text-slate-300'} uppercase tracking-[0.4em]`}>BizDev Admin Terminal • 2024</p>
-             </div>
-           </footer>
-        </main>
-
-        {/* Right Detail Pane (Inspector) */}
-        {selectedStartup && (
-          <aside className={`w-[450px] border-r shrink-0 p-8 overflow-y-auto animate-fade-in-right relative transition-all ${isDark ? 'bg-[#0f172a] border-slate-800 shadow-2xl shadow-black/50' : 'bg-slate-50 border-slate-200'}`}>
-             <button onClick={() => setSelectedStartup(null)} className="absolute top-8 left-8 p-2 rounded-xl hover:bg-slate-200 transition-colors">✕</button>
-             
-             <div className="mb-10 text-center">
-                <div className="w-24 h-24 bg-white border-4 border-blue-500 rounded-[2.5rem] flex items-center justify-center text-4xl mx-auto mb-6 shadow-xl">
-                   {selectedStartup.name.charAt(0)}
-                </div>
-                <h3 className="text-2xl font-black mb-1">{selectedStartup.name}</h3>
-                <p className="text-sm font-bold text-blue-500">{selectedStartup.industry}</p>
-             </div>
-
-             <div className="space-y-8">
-                {/* AI Analysis Result */}
-                <div className={`p-6 rounded-3xl border ${isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-100'}`}>
-                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-                      تحليل Gemini 3 الذكي
-                   </h4>
-                   <p className="text-sm font-medium leading-relaxed italic opacity-80">"{selectedStartup.aiOpinion}"</p>
-                   <div className="mt-4 flex gap-2">
-                      <span className={`px-3 py-1 rounded-lg text-[10px] font-black bg-${selectedStartup.aiClassification === 'Green' ? 'green' : 'amber'}-500 text-white shadow-sm`}>{selectedStartup.aiClassification} Strategy</span>
-                   </div>
-                </div>
-
-                {/* Efficiency Radar Map */}
-                <div className={`p-8 rounded-3xl border flex flex-col items-center ${isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-100'}`}>
-                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest self-start mb-6">رادار القدرات</h4>
-                   <div className="relative w-40 h-40">
-                      <svg viewBox="0 0 160 160" className="w-full h-full drop-shadow-lg">
-                         {[1, 0.7, 0.4].map(s => (
-                           <polygon key={s} points={getRadarPoints({readiness: 100, analysis: 100, tech: 100, personality: 100, strategy: 100, ethics: 100}, 70 * s)} fill="none" stroke={isDark ? '#1e293b' : '#f1f5f9'} strokeWidth="1" />
-                         ))}
-                         <polygon points={getRadarPoints(selectedStartup.metrics, 70)} fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" strokeWidth="2" />
-                      </svg>
-                   </div>
-                   <div className="grid grid-cols-3 gap-2 w-full mt-6">
-                      {Object.entries(selectedStartup.metrics).map(([key, val]) => (
-                        <div key={key} className="text-center">
-                           <p className="text-[8px] font-black uppercase text-slate-500">{key.substr(0,4)}</p>
-                           <p className="text-xs font-black">{val}%</p>
-                        </div>
-                      ))}
-                   </div>
-                </div>
-
-                {/* Information Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                   <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-900/30 border-slate-800' : 'bg-white border-slate-100'}`}>
-                      <p className="text-[10px] text-slate-500 font-bold mb-1">المتقدم</p>
-                      <p className="text-xs font-black">رائد أعمال (مؤسس)</p>
-                   </div>
-                   <div className={`p-4 rounded-2xl border ${isDark ? 'bg-slate-900/30 border-slate-800' : 'bg-white border-slate-100'}`}>
-                      <p className="text-[10px] text-slate-500 font-bold mb-1">تاريخ التسجيل</p>
-                      <p className="text-xs font-black">اليوم</p>
-                   </div>
-                </div>
-
-                {/* Management Actions */}
-                <div className="pt-8 border-t border-slate-100/10 space-y-4">
-                   <p className="text-xs font-black text-slate-400 uppercase tracking-widest text-center">إدارة القرار</p>
-                   <div className="flex gap-4">
-                      <button 
-                        onClick={() => handleUpdateStatus(selectedStartup.projectId, 'APPROVED')}
-                        disabled={selectedStartup.status === 'APPROVED'}
-                        className="flex-1 py-4 bg-green-600 text-white rounded-2xl font-black shadow-lg hover:bg-green-700 transition-all active:scale-95 disabled:opacity-30"
-                      >
-                         قبول في المسار ✅
-                      </button>
-                      <button 
-                        onClick={() => handleUpdateStatus(selectedStartup.projectId, 'REJECTED')}
-                        disabled={selectedStartup.status === 'REJECTED'}
-                        className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black shadow-lg hover:bg-red-700 transition-all active:scale-95 disabled:opacity-30"
-                      >
-                         رفض الطلب ❌
-                      </button>
-                   </div>
-                   <button className={`w-full py-4 border-2 rounded-2xl text-xs font-black ${isDark ? 'border-slate-800 hover:bg-slate-800' : 'border-slate-100 hover:bg-white'}`}>إرسال رسالة توجيهية لرائد الأعمال</button>
-                </div>
-             </div>
-          </aside>
         )}
-      </div>
+
+        {activeTab === 'ai_insights' && (
+           <div className="max-w-4xl mx-auto space-y-12 animate-fade-in py-10">
+              <div className="text-center space-y-4">
+                 <h2 className="text-4xl font-black text-white tracking-tight">نظام التحليل التنبؤي (AAS)</h2>
+                 <p className="text-slate-500 text-xl">تحليل جودة المخرجات وتحديد "الخرجين الذهبيين" الجاهزين للاستثمار.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="bg-slate-900 p-10 rounded-[3rem] border border-white/5 space-y-6">
+                    <h4 className="text-lg font-black flex items-center gap-3">
+                       <span className="text-2xl">📈</span>
+                       معدل نمو الجاهزية
+                    </h4>
+                    <p className="text-slate-400 text-sm leading-relaxed">بناءً على مراجعات الـ AI Mentor لآخر ٥٠ مهمة، يظهر ارتفاع في جودة "نماذج الربح" بنسبة ٢٤٪ هذا الأسبوع.</p>
+                 </div>
+                 <div className="bg-slate-900 p-10 rounded-[3rem] border border-white/5 space-y-6">
+                    <h4 className="text-lg font-black flex items-center gap-3">
+                       <span className="text-2xl">🌍</span>
+                       القطاعات الأكثر طلباً
+                    </h4>
+                    <p className="text-slate-400 text-sm leading-relaxed">أكثر من ٤٠٪ من المشاريع الجديدة تتركز في قطاع "التقنية المالية"، مع وضوح عالي في فهم المتطلبات التشريعية.</p>
+                 </div>
+              </div>
+
+              <div className="p-12 bg-white/5 border border-blue-500/20 rounded-[4rem] text-center space-y-10">
+                 <div className="w-24 h-24 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto text-5xl animate-pulse">🎓</div>
+                 <h3 className="text-3xl font-black">الخرجين المؤهلين للجولات القادمة</h3>
+                 <div className="flex flex-wrap justify-center gap-4">
+                    {['TechLog', 'Eilm Plat', 'FinHub'].map(name => (
+                      <span key={name} className="px-6 py-2 bg-blue-600 text-white rounded-full text-xs font-black shadow-lg shadow-blue-900/40">★ {name}</span>
+                    ))}
+                 </div>
+                 <button className="px-10 py-4 bg-white text-blue-900 rounded-2xl font-black text-sm hover:scale-105 transition-all">تصدير قائمة المستثمرين</button>
+              </div>
+           </div>
+        )}
+      </main>
+
+      {/* Startup Inspector Panel */}
+      {selectedStartup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-end bg-slate-950/80 backdrop-blur-md animate-fade-in">
+           <div className="w-full max-w-2xl h-full bg-[#0f172a] border-r border-white/5 p-12 overflow-y-auto animate-fade-in-right">
+              <div className="flex justify-between items-start mb-12">
+                 <button onClick={() => setSelectedStartup(null)} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-slate-400">✕ إغلاق المفتش</button>
+                 <div className="text-right">
+                    <h3 className="text-3xl font-black">{selectedStartup.name}</h3>
+                    <p className="text-blue-500 font-bold uppercase tracking-widest text-xs mt-1">{selectedStartup.industry}</p>
+                 </div>
+              </div>
+
+              <div className="space-y-10">
+                 <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">خلاصة تقييم Gemini AI</p>
+                    <p className="text-xl font-medium leading-relaxed italic">"{selectedStartup.aiOpinion}"</p>
+                    <div className="mt-8 grid grid-cols-2 gap-4">
+                       <div className="p-4 bg-black/20 rounded-2xl">
+                          <p className="text-[9px] text-slate-500 font-bold mb-1">نقاط الجاهزية</p>
+                          <p className="text-2xl font-black text-emerald-400">{selectedStartup.metrics.readiness}%</p>
+                       </div>
+                       <div className="p-4 bg-black/20 rounded-2xl">
+                          <p className="text-[9px] text-slate-500 font-bold mb-1">النمط القيادي</p>
+                          <p className="text-sm font-black text-blue-400">Visionary Executioner</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="space-y-6">
+                    <h4 className="text-lg font-black flex items-center gap-4">
+                       <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
+                       سجل المخرجات المرفوعة
+                    </h4>
+                    <div className="space-y-3">
+                       {TASKS_CONFIG.map((t, i) => (
+                         <div key={i} className="flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5">
+                            <div className="flex items-center gap-4">
+                               <span className="text-2xl opacity-40">📄</span>
+                               <span className="text-sm font-bold">{t.title}</span>
+                            </div>
+                            <button className="text-[10px] font-black text-blue-500 hover:underline">مراجعة AI Feedback</button>
+                         </div>
+                       ))}
+                    </div>
+                 </div>
+
+                 <div className="pt-10 border-t border-white/5 flex gap-4">
+                    <button className="flex-1 py-5 bg-emerald-600 text-white rounded-2xl font-black shadow-lg hover:bg-emerald-700 transition-all">اعتماد ترقية المسار</button>
+                    <button className="flex-1 py-5 bg-rose-600 text-white rounded-2xl font-black shadow-lg hover:bg-rose-700 transition-all">تجميد المشروع (Stall)</button>
+                 </div>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
