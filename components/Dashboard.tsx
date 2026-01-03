@@ -314,15 +314,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
               <h2 className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{NAV_ITEMS.find(i => i.id === activeNav)?.label}</h2>
            </div>
            <div className="flex items-center gap-4">
-              {isCustomizeMode && (
-                <button 
-                  onClick={handleAISuggest}
-                  disabled={isAISuggesting}
-                  className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-600/20 active:scale-95 transition-all flex items-center gap-2"
-                >
-                  {isAISuggesting ? 'جاري التحليل...' : '✨ تحسين بالذكاء الاصطناعي'}
-                </button>
-              )}
+              <button 
+                onClick={handleAISuggest}
+                disabled={isAISuggesting}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAISuggesting ? (
+                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : '✨'}
+                <span>اقتراحات الأيقونات (AI)</span>
+              </button>
               <button 
                 onClick={() => { setIsCustomizeMode(!isCustomizeMode); playPositiveSound(); }}
                 className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${isCustomizeMode ? 'bg-amber-100 border-amber-400 text-amber-700' : `${isDark ? 'bg-white/5 border-white/10 text-slate-400 hover:border-blue-500' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-500'}`}`}

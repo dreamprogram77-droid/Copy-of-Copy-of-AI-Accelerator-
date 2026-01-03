@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { LevelData, UserProfile, Question, DIGITAL_SHIELDS } from '../types';
+import { LevelData, UserProfile, Question, DIGITAL_SHIELDS, TaskRecord } from '../types';
 import { generateLevelMaterial, generateLevelQuiz, evaluateExerciseResponse } from '../services/geminiService';
 import { playPositiveSound, playCelebrationSound, playErrorSound } from '../services/audioService';
-import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 
 interface LevelTheme {
   id: string;
@@ -74,14 +73,16 @@ const DEFAULT_THEMES = Object.values(THEMES);
 interface LevelViewProps {
   level: LevelData;
   user: UserProfile;
+  tasks: TaskRecord[]; // Linked tasks passed from App
   onComplete: () => void;
   onBack: () => void;
+  onSubmitTask: (taskId: string, content: string) => void;
   onRequestMentorship?: () => void;
 }
 
-enum Step { LOADING_CONTENT, LEARN, EXERCISE, LOADING_QUIZ, QUIZ, COMPLETED }
+enum Step { LOADING_CONTENT, LEARN, EXERCISE, LOADING_QUIZ, QUIZ, OFFICIAL_TASK, COMPLETED }
 
-export const LevelView: React.FC<LevelViewProps> = ({ level, user, onComplete, onBack, onRequestMentorship }) => {
+export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComplete, onBack, onSubmitTask, onRequestMentorship }) => {
   const [step, setStep] = useState<Step>(Step.LOADING_CONTENT);
   const [content, setContent] = useState<string>('');
   const [exercisePrompt, setExercisePrompt] = useState<string>('');
@@ -93,19 +94,25 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, onComplete, o
   const [currentContentPage, setCurrentContentPage] = useState(0);
   const [revealedInsights, setRevealedInsights] = useState<Record<number, boolean>>({});
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('level_display_mode') === 'dark');
+  const [submissionText, setSubmissionText] = useState('');
 
   const activeTheme = useMemo(() => {
      if (level.customColor && THEMES[level.customColor]) return THEMES[level.customColor];
      return DEFAULT_THEMES[(level.id - 1) % DEFAULT_THEMES.length];
   }, [level.customColor, level.id]);
 
-  const shieldInfo = DIGITAL_SHIELDS.find(s => s.levelId === level.id);
-  const contentBlocks = useMemo(() => content ? content.split('\n\n').filter(b => b.trim().length > 10) : [], [content]);
+  const levelTask = useMemo(() => tasks.find(t => t.levelId === level.id), [tasks, level.id]);
+
+  // Fix: Added carouselItems memo to provide data for the learning carousel
   const carouselItems = useMemo(() => {
-    const items = contentBlocks.map((b, i) => ({ type: 'content' as const, data: b, index: i }));
-    items.push({ type: 'resources' as const, data: '', index: contentBlocks.length });
+    if (!content) return [];
+    // Split content by double newlines into distinct learning sections
+    const pages = content.split('\n\n').filter(p => p.trim().length > 0);
+    const items = pages.map(p => ({ type: 'content' as const, data: p }));
+    // Append a summary/next-step item
+    items.push({ type: 'summary' as const, data: '' });
     return items;
-  }, [contentBlocks]);
+  }, [content]);
 
   useEffect(() => {
     const loadContent = async () => {
@@ -138,12 +145,19 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, onComplete, o
     let score = 0;
     quizQuestions.forEach((q, idx) => { if (q.correctIndex === quizAnswers[idx]) score++; });
     if (score >= Math.ceil(quizQuestions.length * 0.6)) {
-       playCelebrationSound();
-       setTimeout(() => setStep(Step.COMPLETED), 2000); 
+       playPositiveSound();
+       setStep(Step.OFFICIAL_TASK); 
     } else {
       playErrorSound();
       alert('نعتذر، لم تجتاز الاختبار بنسبة كافية. يرجى مراجعة المادة وإعادة المحاولة.');
     }
+  };
+
+  const handleTaskSubmission = () => {
+    if (!levelTask || !submissionText.trim()) return;
+    onSubmitTask(levelTask.id, submissionText);
+    playCelebrationSound();
+    setStep(Step.COMPLETED);
   };
 
   return (
@@ -168,7 +182,7 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, onComplete, o
                <h2 className="text-xl font-black">{level.title}</h2>
             </div>
             <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
-               <div className={`h-full ${activeTheme.primary} transition-all duration-1000`} style={{ width: `${(currentContentPage / (carouselItems.length - 1 || 1)) * 100}%` }}></div>
+               <div className={`h-full ${activeTheme.primary} transition-all duration-1000`} style={{ width: `${(step / Step.COMPLETED) * 100}%` }}></div>
             </div>
          </div>
 
@@ -244,13 +258,120 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, onComplete, o
                   {currentContentPage < carouselItems.length - 1 ? (
                     <button onClick={() => { setCurrentContentPage(p => p + 1); playPositiveSound(); }} className={`flex-[2] py-6 text-white rounded-3xl font-black shadow-2xl transition-all active:scale-95 ${activeTheme.primary}`}>المتابعة</button>
                   ) : (
-                    <button onClick={() => { setStep(Step.EXERCISE); playPositiveSound(); }} className="flex-[2] py-6 bg-slate-900 text-white rounded-3xl font-black shadow-2xl animate-pulse">بدء التحدي العملي ✏️</button>
+                    <button onClick={() => { startQuiz(); playPositiveSound(); }} className="flex-[2] py-6 bg-slate-900 text-white rounded-3xl font-black shadow-2xl animate-pulse">بدء الاختبار المعرفي ✏️</button>
                   )}
               </div>
            </div>
         )}
 
-        {/* ... Other steps (EXERCISE, QUIZ, COMPLETED) remain consistent but benefit from the new typography and cards ... */}
+        {step === Step.LOADING_QUIZ && (
+           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 animate-fade-in">
+              <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+              <p className="font-black text-slate-500">جاري صياغة أسئلة التقييم...</p>
+           </div>
+        )}
+
+        {step === Step.QUIZ && (
+           <div className="w-full max-w-3xl space-y-10 animate-fade-in-up">
+              <div className="text-center">
+                 <h3 className="text-3xl font-black mb-2">اختبار المحطة {level.id}</h3>
+                 <p className="text-slate-500">أجب بشكل صحيح للانتقال للمهمة التنفيذية</p>
+              </div>
+              <div className="space-y-8">
+                 {quizQuestions.map((q, qIdx) => (
+                    <div key={q.id} className={`p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white shadow-xl'}`}>
+                       <h4 className="text-xl font-bold mb-6">{qIdx + 1}. {q.text}</h4>
+                       <div className="grid grid-cols-1 gap-3">
+                          {q.options.map((opt, oIdx) => (
+                             <button 
+                                key={oIdx} 
+                                onClick={() => { const a = [...quizAnswers]; a[qIdx] = oIdx; setQuizAnswers(a); playPositiveSound(); }}
+                                className={`p-5 rounded-2xl border-2 text-right font-medium transition-all ${quizAnswers[qIdx] === oIdx ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-100 hover:border-blue-200'}`}
+                             >
+                                {opt}
+                             </button>
+                          ))}
+                       </div>
+                    </div>
+                 ))}
+              </div>
+              <button 
+                 onClick={handleQuizSubmit}
+                 disabled={quizAnswers.includes(-1)}
+                 className="w-full py-6 bg-blue-600 text-white rounded-[2rem] font-black text-xl shadow-2xl disabled:opacity-30"
+              >
+                 تأكيد الإجابات والمتابعة
+              </button>
+           </div>
+        )}
+
+        {step === Step.OFFICIAL_TASK && levelTask && (
+           <div className="w-full max-w-4xl space-y-12 animate-fade-in-up">
+              <div className={`p-12 md:p-16 rounded-[4rem] shadow-3xl content-card relative overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-white'}`}>
+                 <div className="flex justify-between items-start mb-10">
+                    <div>
+                       <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${activeTheme.primary} bg-white/5`}>
+                          المخرج التنفيذي المطلوب
+                       </span>
+                       <h3 className="text-4xl font-black mt-4">{levelTask.title}</h3>
+                    </div>
+                    <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center text-4xl shadow-inner">📝</div>
+                 </div>
+                 
+                 <div className="space-y-8">
+                    <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
+                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">وصف المهمة:</h4>
+                       <p className="text-xl font-medium text-slate-700 leading-relaxed">{levelTask.description}</p>
+                    </div>
+
+                    <div className="space-y-4">
+                       <div className="flex justify-between items-center px-2">
+                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">رابط المخرج أو النص التفصيلي</label>
+                          <span className="text-[10px] font-bold text-blue-600">نوع التسليم: {levelTask.deliverableType}</span>
+                       </div>
+                       <textarea 
+                          className="w-full h-64 p-8 bg-slate-50 border border-slate-200 rounded-[2.5rem] outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white focus:border-blue-500 transition-all font-medium text-lg resize-none shadow-inner" 
+                          placeholder="الصق رابط المستند أو قم بكتابة مخرجاتك هنا..."
+                          value={submissionText}
+                          onChange={e => setSubmissionText(e.target.value)}
+                       />
+                    </div>
+                 </div>
+
+                 <div className="mt-12 flex gap-4">
+                    <button onClick={onBack} className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-[2rem] font-black text-sm hover:bg-slate-200 transition-all">العودة لاحقاً</button>
+                    <button 
+                       onClick={handleTaskSubmission}
+                       disabled={!submissionText.trim()}
+                       className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-30 transition-all"
+                    >
+                       تسليم المخرج واعتماد المحطة 🚀
+                    </button>
+                 </div>
+              </div>
+           </div>
+        )}
+
+        {step === Step.COMPLETED && (
+           <div className="flex flex-col items-center text-center space-y-12 animate-fade-in-up py-10">
+              <div className="relative">
+                 <div className="w-40 h-40 bg-emerald-100 rounded-full flex items-center justify-center text-8xl animate-bounce shadow-inner border-8 border-white">✨</div>
+                 <div className="absolute -top-4 -right-4 w-16 h-16 bg-amber-400 rounded-2xl flex items-center justify-center text-white text-3xl shadow-xl transform rotate-12">🏆</div>
+              </div>
+              <div>
+                 <h2 className="text-5xl font-black text-slate-900 mb-4 tracking-tighter">إنجاز رائع!</h2>
+                 <p className="text-slate-500 text-xl font-medium max-lg mx-auto leading-relaxed">
+                    لقد أتممت بنجاح محطة "{level.title}". تم تسجيل المخرج في ملفك المهني وفتح المحطة التالية.
+                 </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-6">
+                 <button onClick={onComplete} className="px-16 py-6 bg-slate-900 text-white rounded-[2.5rem] font-black text-xl shadow-2xl hover:scale-105 transition-all">العودة للوحة التحكم</button>
+                 {onRequestMentorship && (
+                    <button onClick={onRequestMentorship} className="px-10 py-6 bg-white border-2 border-slate-100 text-blue-600 rounded-[2.5rem] font-black text-xl hover:bg-blue-50 transition-all">طلب استشارة خاصة 🤝</button>
+                 )}
+              </div>
+           </div>
+        )}
       </main>
     </div>
   );

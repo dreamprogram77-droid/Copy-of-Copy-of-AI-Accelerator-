@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiltrationStage, ApplicantProfile, FinalResult, UserProfile, LevelData, LEVELS_CONFIG, NominationResult, ProjectEvaluationResult } from './types';
+import { FiltrationStage, ApplicantProfile, FinalResult, UserProfile, LevelData, LEVELS_CONFIG, NominationResult, ProjectEvaluationResult, TaskRecord } from './types';
 import { storageService } from './services/storageService';
 import { suggestIconsForLevels } from './services/geminiService';
 import { Registration } from './components/Registration';
@@ -29,6 +29,7 @@ function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [finalResult, setFinalResult] = useState<FinalResult | null>(null);
   const [levels, setLevels] = useState<LevelData[]>(LEVELS_CONFIG);
+  const [userTasks, setUserTasks] = useState<TaskRecord[]>([]);
   const [activeLevelId, setActiveLevelId] = useState<number | null>(null);
   const [activeLegal, setActiveLegal] = useState<LegalType>(null);
   const [nominationOutcome, setNominationOutcome] = useState<NominationResult | null>(null);
@@ -59,6 +60,8 @@ function App() {
 
         const userProgress = storageService.getUserProgress(currentUser.uid);
         const userCustoms = storageService.getLevelCustomizations(currentUser.uid);
+        const tasks = storageService.getUserTasks(currentUser.uid);
+        setUserTasks(tasks);
 
         const updatedLevels = LEVELS_CONFIG.map((lvl, index) => {
           const progress = userProgress.find(p => p.levelId === lvl.id);
@@ -171,6 +174,14 @@ function App() {
     }
   };
 
+  const handleTaskSubmitFromView = (taskId: string, content: string) => {
+    const session = storageService.getCurrentSession();
+    if (session) {
+      storageService.submitTask(session.uid, taskId, content);
+      hydrateSession(); // Sync tasks and levels
+    }
+  };
+
   return (
     <div className="font-sans antialiased text-slate-900">
       {stage === FiltrationStage.LANDING && (
@@ -270,6 +281,8 @@ function App() {
         <LevelView 
           level={levels.find(l => l.id === activeLevelId)!} 
           user={userProfile} 
+          tasks={userTasks}
+          onSubmitTask={handleTaskSubmitFromView}
           onComplete={() => handleLevelComplete(activeLevelId)} 
           onBack={() => { setActiveLevelId(null); setStage(FiltrationStage.DASHBOARD); }}
           onRequestMentorship={() => setStage(FiltrationStage.MENTORSHIP)}
