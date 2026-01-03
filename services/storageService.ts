@@ -194,13 +194,20 @@ export const storageService = {
     return tasks.filter((t: any) => t.uid === uid);
   },
 
-  submitTask: (uid: string, taskId: string, content: string) => {
+  submitTask: (uid: string, taskId: string, submissionData: { content?: string, fileData?: string, fileName?: string }) => {
     const tasks = JSON.parse(localStorage.getItem(DB_KEYS.TASKS) || '[]');
     const index = tasks.findIndex((t: any) => t.uid === uid && t.id === taskId);
     if (index > -1) {
       tasks[index].status = 'SUBMITTED';
-      tasks[index].submission = { content, submittedAt: new Date().toISOString() };
+      tasks[index].submission = { 
+        ...submissionData,
+        submittedAt: new Date().toISOString() 
+      };
       localStorage.setItem(DB_KEYS.TASKS, JSON.stringify(tasks));
+      
+      // Auto-unlock logic if needed
+      const currentLevelId = tasks[index].levelId;
+      storageService.updateProgress(uid, currentLevelId, { status: 'COMPLETED' });
     }
   },
 

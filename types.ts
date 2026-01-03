@@ -136,19 +136,21 @@ export interface TaskRecord {
   deliverableType: string;
   status: 'LOCKED' | 'ASSIGNED' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
   submission?: {
-    content: string;
+    content?: string;
+    fileData?: string; // Base64 of PDF
+    fileName?: string;
     submittedAt: string;
     feedback?: string;
   };
 }
 
 export const TASKS_CONFIG: TaskRecord[] = [
-  { id: 'task_1', levelId: 1, title: 'تقرير التحقق الميداني', deliverableType: 'مستند PDF / رابط استبيان', description: 'قم بإجراء مقابلات مع 10 عملاء محتملين وتوثيق أهم 3 مشاكل يواجهونها.', status: 'LOCKED' },
-  { id: 'task_2', levelId: 2, title: 'مخطط نموذج العمل النهائي', deliverableType: 'Business Model Canvas', description: 'صمم مخطط نموذج العمل الكامل لمشروعك مع توضيح تدفقات الإيرادات بدقة.', status: 'LOCKED' },
-  { id: 'task_3', levelId: 3, title: 'مصفوفة تحليل المنافسين', deliverableType: 'جدول مقارنة', description: 'قارن مشروعك بـ 3 منافسين مباشرين وحدد ميزتك التنافسية (USP).', status: 'LOCKED' },
-  { id: 'task_4', levelId: 4, title: 'خارطة طريق الـ MVP', deliverableType: 'قائمة المزايا (Backlog)', description: 'حدد المزايا التي سيتم إطلاقها في النسخة الأولى والجدول الزمني للتطوير.', status: 'LOCKED' },
-  { id: 'task_5', levelId: 5, title: 'نموذج التوقعات المالية', deliverableType: 'Excel / Spreadsheet', description: 'ارفع ملف التوقعات المالية للسنوات الثلاث الأولى متضمناً نقطة التعادل.', status: 'LOCKED' },
-  { id: 'task_6', levelId: 6, title: 'ملف العرض الاستثماري (Final Deck)', deliverableType: 'عرض تقديمي (Pitch Deck)', description: 'النسخة النهائية من العرض الجاهز للإرسال للمستثمرين.', status: 'LOCKED' },
+  { id: 'task_1', levelId: 1, title: 'تقرير التحقق الميداني', deliverableType: 'PDF Document', description: 'قم بإجراء مقابلات مع 10 عملاء محتملين ورفع النتائج في ملف PDF موحد.', status: 'LOCKED' },
+  { id: 'task_2', levelId: 2, title: 'مخطط نموذج العمل النهائي', deliverableType: 'PDF (Business Model Canvas)', description: 'ارفع مخطط نموذج العمل الكامل لمشروعك بصيغة PDF مع توضيح تدفقات الإيرادات.', status: 'LOCKED' },
+  { id: 'task_3', levelId: 3, title: 'مصفوفة تحليل المنافسين', deliverableType: 'PDF Table', description: 'ارفع جدول مقارنة مع 3 منافسين مباشرين يوضح ميزتك التنافسية.', status: 'LOCKED' },
+  { id: 'task_4', levelId: 4, title: 'خارطة طريق الـ MVP', deliverableType: 'PDF Roadmap', description: 'ارفع قائمة المزايا والجدول الزمني لتطوير المنتج الأولي بصيغة PDF.', status: 'LOCKED' },
+  { id: 'task_5', levelId: 5, title: 'نموذج التوقعات المالية', deliverableType: 'PDF/Excel Export', description: 'ارفع ملف التوقعات المالية للسنوات الثلاث الأولى متضمناً نقطة التعادل.', status: 'LOCKED' },
+  { id: 'task_6', levelId: 6, title: 'ملف العرض الاستثماري النهائي', deliverableType: 'PDF Pitch Deck', description: 'ارفع النسخة النهائية من العرض الجاهز للإرسال للمستثمرين بصيغة PDF.', status: 'LOCKED' },
 ];
 
 export interface Badge {
@@ -281,6 +283,7 @@ export interface NominationData {
   incubationReason?: string;
   weeklyHours: 'LESS_5' | '5-10' | '10-20' | '20+';
   agreesToWeeklySession: boolean;
+  agreesToWeeklySession?: boolean;
   agreesToKPIs: boolean;
   isCommitted10Hours?: boolean;
   potentialObstacles?: string;

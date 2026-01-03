@@ -49,7 +49,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
   const [userRequests, setUserRequests] = useState<ServiceRequest[]>([]);
   const [selectedTask, setSelectedTask] = useState<TaskRecord | null>(null);
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
-  const [submissionText, setSubmissionText] = useState('');
+  const [submissionFile, setSubmissionFile] = useState<{data: string, name: string} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzingOpp, setIsAnalyzingOpp] = useState(false);
   const [oppResult, setOppResult] = useState<OpportunityAnalysis | null>(null);
@@ -62,6 +62,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
   const [customColorName, setCustomColorName] = useState('أزرق');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const taskFileRef = useRef<HTMLInputElement>(null);
 
   const completedCount = levels.filter(l => l.isCompleted).length;
   const progress = (completedCount / levels.length) * 100;
@@ -122,6 +123,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
     }
   };
 
+  const handleTaskFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSubmissionFile({
+          data: reader.result as string,
+          name: file.name
+        });
+        playPositiveSound();
+      };
+      reader.readAsDataURL(file);
+    } else if (file) {
+      alert('يرجى رفع ملف بصيغة PDF فقط.');
+    }
+  };
+
   const handleSaveProfile = () => {
     setIsSaving(true);
     const session = storageService.getCurrentSession();
@@ -149,13 +167,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
   };
 
   const handleTaskSubmit = () => {
-    if (!selectedTask || !submissionText.trim()) return;
+    if (!selectedTask || !submissionFile) return;
     const session = storageService.getCurrentSession();
-    storageService.submitTask(session.uid, selectedTask.id, submissionText);
+    storageService.submitTask(session.uid, selectedTask.id, {
+      fileData: submissionFile.data,
+      fileName: submissionFile.name
+    });
     setUserTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, status: 'SUBMITTED' } : t));
     setSelectedTask(null);
-    setSubmissionText('');
-    playPositiveSound();
+    setSubmissionFile(null);
+    playCelebrationSound();
   };
 
   const handleRatingSubmit = (rating: ProgramRating) => {
@@ -458,12 +479,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                               onClick={() => setSelectedTask(task)} 
                               className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-sm hover:brightness-110 transition-all shadow-xl shadow-blue-600/20 active:scale-95"
                            >
-                              تسليم المخرج النهائي
+                              تسليم المخرج النهائي (PDF)
                            </button>
                         )}
                         {task.status === 'SUBMITTED' && (
                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">تم الاستلام والمراجعة جارية</p>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">تم رفع الملف: {task.submission?.fileName}</p>
+                              <p className="text-[10px] text-emerald-500 font-bold mt-1">جاري مراجعة المخرج النهائي</p>
                            </div>
                         )}
                      </div>
@@ -648,17 +670,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
               <div className="flex justify-between items-start mb-10">
                  <div>
                     <h3 className="text-3xl font-black tracking-tight">تسليم: {selectedTask.title}</h3>
-                    <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest mt-1">Deliverable Submission Portal</p>
+                    <p className="text-blue-500 text-[10px] font-black uppercase tracking-widest mt-1">Deliverable Submission Portal (PDF Only)</p>
                  </div>
-                 <button onClick={() => setSelectedTask(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">✕</button>
+                 <button onClick={() => { setSelectedTask(null); setSubmissionFile(null); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">✕</button>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 mb-8">
                 <p className="text-slate-500 text-sm leading-relaxed font-medium">{selectedTask.description}</p>
               </div>
-              <textarea className={`w-full h-64 p-8 rounded-[2.5rem] border outline-none focus:ring-4 transition-all duration-300 font-medium text-lg resize-none shadow-inner mb-10 ${isDark ? 'bg-slate-800 border-slate-700 focus:ring-blue-500/10 focus:border-blue-500' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/5 focus:border-blue-500 focus:bg-white'}`} placeholder="الصق رابط المخرج أو اكتب التفاصيل هنا..." value={submissionText} onChange={e => setSubmissionText(e.target.value)} />
-              <div className="flex gap-4">
-                <button onClick={() => setSelectedTask(null)} className="flex-1 py-5 font-black text-slate-400 hover:text-slate-600 transition-colors">إغلاق</button>
-                <button onClick={handleTaskSubmit} disabled={!submissionText.trim()} className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/30 disabled:opacity-30 active:scale-95 transition-all hover:bg-blue-700">تأكيد التسليم الرسمي 🚀</button>
+              
+              <div 
+                onClick={() => taskFileRef.current?.click()}
+                className={`w-full h-64 border-4 border-dashed rounded-[3rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300
+                  ${submissionFile ? 'bg-emerald-500/5 border-emerald-500' : (isDark ? 'bg-slate-800 border-white/5 hover:border-blue-500/50' : 'bg-slate-50 border-slate-200 hover:border-blue-500/50')}
+                `}
+              >
+                 <input type="file" ref={taskFileRef} className="hidden" accept="application/pdf" onChange={handleTaskFileUpload} />
+                 {submissionFile ? (
+                   <>
+                      <span className="text-5xl mb-4">📄</span>
+                      <p className="font-black text-emerald-500 text-lg">{submissionFile.name}</p>
+                      <p className="text-xs text-slate-400 mt-2">انقر لتغيير الملف</p>
+                   </>
+                 ) : (
+                   <>
+                      <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg mb-6 transform group-hover:scale-110 transition-transform">📁</div>
+                      <p className="font-black text-slate-400">انقر هنا لرفع مخرجك النهائي بصيغة PDF</p>
+                      <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest">Maximum Size: 5MB</p>
+                   </>
+                 )}
+              </div>
+
+              <div className="flex gap-4 mt-10">
+                <button onClick={() => { setSelectedTask(null); setSubmissionFile(null); }} className="flex-1 py-5 font-black text-slate-400 hover:text-slate-600 transition-colors">إغلاق</button>
+                <button onClick={handleTaskSubmit} disabled={!submissionFile} className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/30 disabled:opacity-30 active:scale-95 transition-all hover:bg-blue-700">إرسال المخرج للمراجعة 🚀</button>
               </div>
             </div>
           </div>
