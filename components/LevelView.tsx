@@ -73,7 +73,7 @@ const DEFAULT_THEMES = Object.values(THEMES);
 interface LevelViewProps {
   level: LevelData;
   user: UserProfile;
-  tasks: TaskRecord[]; // Linked tasks passed from App
+  tasks: TaskRecord[]; 
   onComplete: () => void;
   onBack: () => void;
   onSubmitTask: (taskId: string, content: string) => void;
@@ -86,9 +86,6 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
   const [step, setStep] = useState<Step>(Step.LOADING_CONTENT);
   const [content, setContent] = useState<string>('');
   const [exercisePrompt, setExercisePrompt] = useState<string>('');
-  const [exerciseAnswer, setExerciseAnswer] = useState<string>('');
-  const [exerciseFeedback, setExerciseFeedback] = useState<string>('');
-  const [isExerciseSubmitting, setIsExerciseSubmitting] = useState(false);
   const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
   const [currentContentPage, setCurrentContentPage] = useState(0);
@@ -103,13 +100,10 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
 
   const levelTask = useMemo(() => tasks.find(t => t.levelId === level.id), [tasks, level.id]);
 
-  // Fix: Added carouselItems memo to provide data for the learning carousel
   const carouselItems = useMemo(() => {
     if (!content) return [];
-    // Split content by double newlines into distinct learning sections
     const pages = content.split('\n\n').filter(p => p.trim().length > 0);
     const items = pages.map(p => ({ type: 'content' as const, data: p }));
-    // Append a summary/next-step item
     items.push({ type: 'summary' as const, data: '' });
     return items;
   }, [content]);
@@ -163,131 +157,159 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-slate-950 text-slate-100' : activeTheme.bg + ' text-slate-900'} flex flex-col font-sans transition-colors duration-500 overflow-x-hidden`} dir="rtl">
       <style>{`
-        .page-header { backdrop-filter: blur(20px); background: ${isDarkMode ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.7)'}; border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
-        .content-card { transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
-        .prose-xl p { font-size: 1.5rem; line-height: 2.8rem; margin-bottom: 2rem; font-weight: 500; opacity: 0.9; }
-        .insight-box { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); max-height: 0; opacity: 0; overflow: hidden; }
-        .insight-box.open { max-height: 500px; opacity: 1; margin-top: 2rem; }
+        .level-header { backdrop-filter: blur(24px); background: ${isDarkMode ? 'rgba(15, 23, 42, 0.5)' : 'rgba(255, 255, 255, 0.5)'}; border-bottom: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
+        .reader-card { transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1); border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; }
+        .article-pro p { font-size: 1.25rem; line-height: 2.4rem; margin-bottom: 2rem; font-weight: 400; opacity: 0.85; text-align: justify; }
+        .article-pro h4 { font-size: 1.75rem; font-weight: 800; margin-bottom: 1.5rem; color: #2563eb; }
+        .ai-insight-hub { border-right: 4px solid #3b82f6; background: ${isDarkMode ? 'rgba(59, 130, 246, 0.05)' : 'rgba(59, 130, 246, 0.03)'}; }
+        .insight-content { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); max-height: 0; opacity: 0; overflow: hidden; }
+        .insight-content.open { max-height: 500px; opacity: 1; margin-top: 1.5rem; }
       `}</style>
 
-      {/* Level Header */}
-      <header className="page-header sticky top-0 z-[60] px-8 py-4 flex justify-between items-center">
-         <button onClick={onBack} className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-blue-500 transition-all active:scale-95 group border border-white/5">
-            <svg className="w-6 h-6 transform rotate-180 group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+      {/* Modern Header */}
+      <header className="level-header sticky top-0 z-[60] px-8 py-5 flex justify-between items-center shadow-lg">
+         <button onClick={onBack} className="p-3 glass rounded-2xl text-slate-400 hover:text-blue-500 transition-all active:scale-90 group">
+            <svg className="w-6 h-6 transform rotate-180 group-hover:-translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
          </button>
          
-         <div className="text-center flex flex-col items-center">
-            <div className="flex items-center gap-4 mb-2">
-               <span className="text-3xl filter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">{level.icon}</span>
-               <h2 className="text-xl font-black">{level.title}</h2>
+         <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-5">
+               <span className="text-4xl filter drop-shadow-[0_0_12px_rgba(37,99,235,0.4)]">{level.icon}</span>
+               <div>
+                  <h2 className="text-2xl font-black tracking-tight leading-none">{level.title}</h2>
+                  <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1.5">Intelligence Module: LVL 0{level.id}</p>
+               </div>
             </div>
-            <div className="w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
-               <div className={`h-full ${activeTheme.primary} transition-all duration-1000`} style={{ width: `${(step / Step.COMPLETED) * 100}%` }}></div>
+            <div className="w-64 h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
+               <div className={`h-full ${activeTheme.primary} transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(37,99,235,0.4)]`} style={{ width: `${(step / Step.COMPLETED) * 100}%` }}></div>
             </div>
          </div>
 
-         <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all">
+         <button onClick={() => { setIsDarkMode(!isDarkMode); localStorage.setItem('level_display_mode', !isDarkMode ? 'dark' : 'light'); }} className="p-3 glass rounded-2xl hover:bg-white/10 transition-all">
             {isDarkMode ? '☀️' : '🌙'}
          </button>
       </header>
 
-      <main className="flex-1 max-w-5xl mx-auto w-full p-6 md:p-16 flex flex-col items-center">
+      <main className="flex-1 max-w-4xl mx-auto w-full p-6 md:p-20 flex flex-col items-center">
         {step === Step.LOADING_CONTENT && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-10 animate-fade-in">
-             <div className="relative w-32 h-32">
-                <div className="absolute inset-0 border-8 border-white/5 rounded-full"></div>
-                <div className={`absolute inset-0 border-8 ${activeTheme.primary} border-t-transparent rounded-full animate-spin`}></div>
-                <div className="absolute inset-0 flex items-center justify-center text-6xl">{level.icon}</div>
+          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-12 animate-fade-in">
+             <div className="relative w-40 h-40">
+                <div className="absolute inset-0 border-[12px] border-blue-500/5 rounded-full"></div>
+                <div className={`absolute inset-0 border-[12px] ${activeTheme.primary} border-t-transparent rounded-full animate-spin`}></div>
+                <div className="absolute inset-0 flex items-center justify-center text-7xl animate-pulse">{level.icon}</div>
              </div>
-             <p className="text-xl font-black animate-pulse opacity-60">جاري استدعاء المحتوى الذكي لهذه المحطة...</p>
+             <div className="text-center space-y-3">
+                <p className="text-2xl font-black text-slate-800 dark:text-white">جاري تحضير المحتوى الذكي...</p>
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Gemini Generative Engine Active</p>
+             </div>
           </div>
         )}
 
         {step === Step.LEARN && (
-           <div className="w-full space-y-12 animate-fade-in-up">
-              <div className={`p-14 md:p-20 rounded-[4.5rem] shadow-3xl content-card relative overflow-hidden ${isDarkMode ? 'bg-slate-900/50' : 'bg-white'}`}>
+           <div className="w-full space-y-16 animate-fade-in-up">
+              <div className={`p-16 md:p-24 rounded-[4rem] premium-shadow reader-card relative overflow-hidden ${isDarkMode ? 'bg-slate-900/60' : 'bg-white'}`}>
+                  <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-l from-blue-600 to-indigo-500"></div>
+                  
                   {carouselItems[currentContentPage]?.type === 'content' ? (
                      <div key={currentContentPage} className="animate-fade-in">
-                        <article className={`prose-xl ${isDarkMode ? 'text-slate-200' : 'text-slate-800'} text-right`}>
-                           {carouselItems[currentContentPage].data.split('\n').map((p, i) => <p key={i}>{p}</p>)}
+                        <article className={`article-pro ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} text-right`}>
+                           {carouselItems[currentContentPage].data.split('\n').map((p, i) => {
+                             if (p.startsWith('###')) return <h4 key={i}>{p.replace('###', '')}</h4>;
+                             return <p key={i}>{p}</p>;
+                           })}
                         </article>
 
                         <div 
                           onClick={() => toggleInsight(currentContentPage)}
-                          className={`mt-12 p-8 rounded-[2.5rem] cursor-pointer border-2 transition-all group
+                          className={`ai-insight-hub mt-16 p-10 rounded-[2.5rem] cursor-pointer transition-all duration-500 group
                              ${revealedInsights[currentContentPage] 
-                               ? `${activeTheme.bg} ${activeTheme.border}` 
-                               : `bg-slate-800/5 border-dashed border-slate-500/20 hover:border-blue-500/50`}
+                               ? `${activeTheme.bg} border-blue-400/30 shadow-lg` 
+                               : `hover:bg-blue-600/5 border-transparent`}
                           `}
                         >
                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-4">
-                                 <span className="text-3xl">🧠</span>
-                                 <h4 className="text-xl font-black">رؤية استراتيجية مخصصة</h4>
+                              <div className="flex items-center gap-5">
+                                 <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl shadow-xl text-white group-hover:rotate-6 transition-transform">🤖</div>
+                                 <div>
+                                    <h4 className="text-xl font-black mb-0 text-slate-900 dark:text-white">تحليل المستشار الذكي</h4>
+                                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Contextual AI Insight</p>
+                                 </div>
                               </div>
-                              <span className={`transition-transform duration-500 ${revealedInsights[currentContentPage] ? 'rotate-180' : ''}`}>▼</span>
+                              <span className={`transition-transform duration-500 text-blue-400 ${revealedInsights[currentContentPage] ? 'rotate-180' : ''}`}>
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                              </span>
                            </div>
-                           <div className={`insight-box ${revealedInsights[currentContentPage] ? 'open' : ''}`}>
-                              <p className="text-xl font-medium leading-relaxed italic opacity-80 pt-6">
+                           <div className={`insight-content ${revealedInsights[currentContentPage] ? 'open' : ''}`}>
+                              <p className="text-xl font-medium leading-relaxed italic opacity-90 text-slate-600 dark:text-slate-400 pt-4 pr-4">
                                 بناءً على مشروعك في قطاع {user.industry}، نوصيك بالتركيز على تطبيق هذه المبادئ في نموذج العمل الخاص بك لزيادة ميزتك التنافسية.
                               </p>
                            </div>
                         </div>
                      </div>
                   ) : (
-                    <div className="text-center space-y-10 py-10 animate-fade-in">
-                       <div className="w-24 h-24 bg-slate-800/5 rounded-[2.5rem] flex items-center justify-center mx-auto text-6xl">📥</div>
-                       <h3 className="text-4xl font-black">اكتمل الجزء المعرفي</h3>
-                       <p className="text-slate-500 text-xl font-medium max-w-lg mx-auto leading-relaxed">أنت الآن جاهز للتطبيق العملي. قمنا بتوفير أدوات Gemini المساعدة لمشروعك في هذا المستوى.</p>
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {['دليل التنفيذ', 'ملفات العمل', 'أدوات AI', 'أمثلة سابقة'].map(m => (
-                            <button key={m} className="p-6 bg-slate-800/5 rounded-3xl font-black text-sm hover:bg-blue-600 hover:text-white transition-all border border-transparent hover:border-blue-400">تحميل {m}</button>
+                    <div className="text-center space-y-12 py-12 animate-fade-in">
+                       <div className="w-32 h-32 bg-blue-600/10 rounded-[3rem] flex items-center justify-center mx-auto text-7xl shadow-inner animate-float">📥</div>
+                       <div className="space-y-4">
+                          <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">اكتمل المسار المعرفي</h3>
+                          <p className="text-slate-500 text-xl font-medium max-w-xl mx-auto leading-relaxed">أنت الآن جاهز للتطبيق العملي. قمنا بتوفير أدوات Gemini المساعدة لمشروعك في هذا المستوى لمساعدتك في بناء المخرج النهائي.</p>
+                       </div>
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                          {['دليل التنفيذ (PDF)', 'نماذج العمل التقنية', 'أدوات Gemini المساعدة', 'أمثلة لشركات ناجحة'].map(m => (
+                            <button key={m} className="p-8 bg-slate-50 dark:bg-white/5 rounded-[2rem] font-black text-sm hover:bg-blue-600 hover:text-white transition-all border border-transparent hover:scale-105 active:scale-95 shadow-sm">تحميل {m}</button>
                           ))}
                        </div>
                     </div>
                   )}
               </div>
 
-              <div className="flex justify-between items-center gap-6">
-                  <button disabled={currentContentPage === 0} onClick={() => { setCurrentContentPage(p => p - 1); playPositiveSound(); }} className="flex-1 py-6 bg-slate-800/5 border border-white/5 text-slate-400 rounded-3xl font-black hover:text-blue-500 transition-all disabled:opacity-30">السابق</button>
-                  <div className="flex gap-3">
+              {/* Navigation Controls */}
+              <div className="flex justify-between items-center gap-8">
+                  <button disabled={currentContentPage === 0} onClick={() => { setCurrentContentPage(p => p - 1); playPositiveSound(); }} className="flex-1 py-6 glass text-slate-500 rounded-3xl font-black hover:text-blue-600 transition-all disabled:opacity-20 active:scale-95">السابق</button>
+                  <div className="flex gap-4">
                      {carouselItems.map((_, i) => (
-                       <div key={i} className={`h-2 rounded-full transition-all duration-500 ${i === currentContentPage ? 'w-10 bg-blue-600' : 'w-2 bg-white/10'}`}></div>
+                       <div key={i} className={`h-2.5 rounded-full transition-all duration-700 ${i === currentContentPage ? 'w-14 bg-blue-600 shadow-[0_0_12px_rgba(37,99,235,0.6)]' : 'w-2.5 bg-slate-200 dark:bg-white/10'}`}></div>
                      ))}
                   </div>
                   {currentContentPage < carouselItems.length - 1 ? (
-                    <button onClick={() => { setCurrentContentPage(p => p + 1); playPositiveSound(); }} className={`flex-[2] py-6 text-white rounded-3xl font-black shadow-2xl transition-all active:scale-95 ${activeTheme.primary}`}>المتابعة</button>
+                    <button onClick={() => { setCurrentContentPage(p => p + 1); playPositiveSound(); }} className={`flex-[2] py-6 text-white rounded-3xl font-black shadow-2xl transition-all hover:brightness-110 active:scale-95 ${activeTheme.primary}`}>المتابعة</button>
                   ) : (
-                    <button onClick={() => { startQuiz(); playPositiveSound(); }} className="flex-[2] py-6 bg-slate-900 text-white rounded-3xl font-black shadow-2xl animate-pulse">بدء الاختبار المعرفي ✏️</button>
+                    <button onClick={() => { startQuiz(); playPositiveSound(); }} className="flex-[2] py-6 bg-slate-900 text-white rounded-3xl font-black shadow-2xl animate-pulse active:scale-95">بدء الاختبار المعرفي ✏️</button>
                   )}
               </div>
            </div>
         )}
 
         {step === Step.LOADING_QUIZ && (
-           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 animate-fade-in">
-              <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-              <p className="font-black text-slate-500">جاري صياغة أسئلة التقييم...</p>
+           <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 animate-fade-in">
+              <div className="w-20 h-20 border-[6px] border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+              <p className="text-xl font-black text-slate-500">جاري صياغة أسئلة التقييم الذكية...</p>
            </div>
         )}
 
         {step === Step.QUIZ && (
-           <div className="w-full max-w-3xl space-y-10 animate-fade-in-up">
-              <div className="text-center">
-                 <h3 className="text-3xl font-black mb-2">اختبار المحطة {level.id}</h3>
-                 <p className="text-slate-500">أجب بشكل صحيح للانتقال للمهمة التنفيذية</p>
+           <div className="w-full max-w-2xl space-y-12 animate-fade-in-up">
+              <div className="text-center space-y-3">
+                 <h3 className="text-4xl font-black tracking-tight">تقييم استيعاب المحطة</h3>
+                 <p className="text-slate-500 font-medium">أجب بشكل صحيح للانتقال لمرحلة تسليم المخرج التنفيذي</p>
               </div>
-              <div className="space-y-8">
+              <div className="space-y-10">
                  {quizQuestions.map((q, qIdx) => (
-                    <div key={q.id} className={`p-8 rounded-[2.5rem] ${isDarkMode ? 'bg-slate-900' : 'bg-white shadow-xl'}`}>
-                       <h4 className="text-xl font-bold mb-6">{qIdx + 1}. {q.text}</h4>
-                       <div className="grid grid-cols-1 gap-3">
+                    <div key={q.id} className={`p-12 rounded-[3.5rem] premium-shadow ${isDarkMode ? 'bg-slate-900/60' : 'bg-white'}`}>
+                       <div className="flex items-center gap-4 mb-10">
+                          <span className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xs">{qIdx + 1}</span>
+                          <h4 className="text-2xl font-black text-slate-800 dark:text-white leading-snug">{q.text}</h4>
+                       </div>
+                       <div className="grid grid-cols-1 gap-4">
                           {q.options.map((opt, oIdx) => (
                              <button 
                                 key={oIdx} 
                                 onClick={() => { const a = [...quizAnswers]; a[qIdx] = oIdx; setQuizAnswers(a); playPositiveSound(); }}
-                                className={`p-5 rounded-2xl border-2 text-right font-medium transition-all ${quizAnswers[qIdx] === oIdx ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-100 hover:border-blue-200'}`}
+                                className={`p-6 rounded-2xl border-2 text-right font-bold transition-all duration-300 relative overflow-hidden group
+                                  ${quizAnswers[qIdx] === oIdx 
+                                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-600/10 text-blue-700 dark:text-blue-400 shadow-lg' 
+                                    : 'border-slate-100 dark:border-white/5 hover:border-blue-200 dark:hover:border-blue-500/30'}`}
                              >
+                                <div className={`absolute top-0 right-0 w-1.5 h-full transition-all ${quizAnswers[qIdx] === oIdx ? 'bg-blue-600' : 'bg-transparent group-hover:bg-blue-200'}`}></div>
                                 {opt}
                              </button>
                           ))}
@@ -298,7 +320,7 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
               <button 
                  onClick={handleQuizSubmit}
                  disabled={quizAnswers.includes(-1)}
-                 className="w-full py-6 bg-blue-600 text-white rounded-[2rem] font-black text-xl shadow-2xl disabled:opacity-30"
+                 className="w-full py-7 bg-blue-600 text-white rounded-[2.2rem] font-black text-xl shadow-2xl shadow-blue-500/30 disabled:opacity-30 active:scale-95 transition-all hover:bg-blue-700"
               >
                  تأكيد الإجابات والمتابعة
               </button>
@@ -306,46 +328,47 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
         )}
 
         {step === Step.OFFICIAL_TASK && levelTask && (
-           <div className="w-full max-w-4xl space-y-12 animate-fade-in-up">
-              <div className={`p-12 md:p-16 rounded-[4rem] shadow-3xl content-card relative overflow-hidden ${isDarkMode ? 'bg-slate-900' : 'bg-white'}`}>
-                 <div className="flex justify-between items-start mb-10">
+           <div className="w-full max-w-3xl space-y-12 animate-fade-in-up">
+              <div className={`p-14 md:p-20 rounded-[4rem] premium-shadow reader-card relative overflow-hidden ${isDarkMode ? 'bg-slate-900/60' : 'bg-white'}`}>
+                 <div className="flex justify-between items-start mb-12">
                     <div>
-                       <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${activeTheme.primary} bg-white/5`}>
+                       <span className={`inline-flex items-center gap-3 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-500/20 bg-blue-500/5 text-blue-600`}>
                           المخرج التنفيذي المطلوب
                        </span>
-                       <h3 className="text-4xl font-black mt-4">{levelTask.title}</h3>
+                       <h3 className="text-5xl font-black mt-6 leading-tight tracking-tight">{levelTask.title}</h3>
                     </div>
-                    <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center text-4xl shadow-inner">📝</div>
+                    <div className="w-24 h-24 bg-blue-600 rounded-[2.5rem] flex items-center justify-center text-5xl shadow-xl text-white transform -rotate-6">📝</div>
                  </div>
                  
-                 <div className="space-y-8">
-                    <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
-                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">وصف المهمة:</h4>
-                       <p className="text-xl font-medium text-slate-700 leading-relaxed">{levelTask.description}</p>
+                 <div className="space-y-10">
+                    <div className="bg-slate-50 dark:bg-white/5 p-10 rounded-[3rem] border border-slate-100 dark:border-white/5 shadow-inner">
+                       <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">وصف المهمة التنفيذية:</h4>
+                       <p className="text-xl font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic opacity-90">{levelTask.description}</p>
                     </div>
 
-                    <div className="space-y-4">
-                       <div className="flex justify-between items-center px-2">
-                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">رابط المخرج أو النص التفصيلي</label>
-                          <span className="text-[10px] font-bold text-blue-600">نوع التسليم: {levelTask.deliverableType}</span>
+                    <div className="space-y-6">
+                       <div className="flex justify-between items-center px-4">
+                          <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Submission Portal</label>
+                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-600/10 px-3 py-1 rounded-lg">نوع التسليم: {levelTask.deliverableType}</span>
                        </div>
                        <textarea 
-                          className="w-full h-64 p-8 bg-slate-50 border border-slate-200 rounded-[2.5rem] outline-none focus:ring-4 focus:ring-blue-500/5 focus:bg-white focus:border-blue-500 transition-all font-medium text-lg resize-none shadow-inner" 
-                          placeholder="الصق رابط المستند أو قم بكتابة مخرجاتك هنا..."
+                          className={`w-full h-72 p-10 border rounded-[3rem] outline-none focus:ring-8 transition-all duration-500 font-medium text-xl resize-none shadow-inner 
+                            ${isDarkMode ? 'bg-slate-800 border-white/5 focus:ring-blue-500/10 focus:border-blue-500 text-white' : 'bg-slate-50 border-slate-200 focus:ring-blue-500/5 focus:bg-white focus:border-blue-500'}`}
+                          placeholder="الصق رابط المستند أو قم بكتابة مخرجاتك النهائية هنا..."
                           value={submissionText}
                           onChange={e => setSubmissionText(e.target.value)}
                        />
                     </div>
                  </div>
 
-                 <div className="mt-12 flex gap-4">
-                    <button onClick={onBack} className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-[2rem] font-black text-sm hover:bg-slate-200 transition-all">العودة لاحقاً</button>
+                 <div className="mt-16 flex flex-col sm:flex-row gap-4">
+                    <button onClick={onBack} className="flex-1 py-6 glass text-slate-500 rounded-[2.2rem] font-black text-sm hover:text-slate-900 transition-all active:scale-95">إكمال التسليم لاحقاً</button>
                     <button 
                        onClick={handleTaskSubmission}
                        disabled={!submissionText.trim()}
-                       className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-30 transition-all"
+                       className="flex-[2.5] py-6 bg-slate-900 text-white rounded-[2.2rem] font-black text-xl shadow-2xl transition-all transform hover:scale-105 active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
                     >
-                       تسليم المخرج واعتماد المحطة 🚀
+                       اعتماد المخرج وإنهاء المحطة 🚀
                     </button>
                  </div>
               </div>
@@ -353,21 +376,21 @@ export const LevelView: React.FC<LevelViewProps> = ({ level, user, tasks, onComp
         )}
 
         {step === Step.COMPLETED && (
-           <div className="flex flex-col items-center text-center space-y-12 animate-fade-in-up py-10">
+           <div className="flex flex-col items-center text-center space-y-16 animate-fade-in-up py-12">
               <div className="relative">
-                 <div className="w-40 h-40 bg-emerald-100 rounded-full flex items-center justify-center text-8xl animate-bounce shadow-inner border-8 border-white">✨</div>
-                 <div className="absolute -top-4 -right-4 w-16 h-16 bg-amber-400 rounded-2xl flex items-center justify-center text-white text-3xl shadow-xl transform rotate-12">🏆</div>
+                 <div className="w-48 h-48 bg-emerald-500/10 rounded-full flex items-center justify-center text-9xl animate-bounce shadow-inner border-[12px] border-white dark:border-slate-800">✨</div>
+                 <div className="absolute -top-6 -right-6 w-20 h-20 bg-amber-400 rounded-3xl flex items-center justify-center text-white text-4xl shadow-2xl transform rotate-12 ring-8 ring-white dark:ring-slate-950">🏆</div>
               </div>
-              <div>
-                 <h2 className="text-5xl font-black text-slate-900 mb-4 tracking-tighter">إنجاز رائع!</h2>
-                 <p className="text-slate-500 text-xl font-medium max-lg mx-auto leading-relaxed">
-                    لقد أتممت بنجاح محطة "{level.title}". تم تسجيل المخرج في ملفك المهني وفتح المحطة التالية.
+              <div className="space-y-6">
+                 <h2 className="text-7xl font-black text-slate-900 dark:text-white tracking-tighter">إنجاز رائد!</h2>
+                 <p className="text-slate-500 dark:text-slate-400 text-2xl font-medium max-w-xl mx-auto leading-relaxed">
+                    لقد أتممت بنجاح محطة "{level.title}". تم تسجيل المخرج في ملفك المهني وفتح المحطة التالية في مسار نمو مشروعك.
                  </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-6">
-                 <button onClick={onComplete} className="px-16 py-6 bg-slate-900 text-white rounded-[2.5rem] font-black text-xl shadow-2xl hover:scale-105 transition-all">العودة للوحة التحكم</button>
+              <div className="flex flex-col sm:flex-row gap-8">
+                 <button onClick={onComplete} className="px-20 py-7 bg-blue-600 text-white rounded-[2.5rem] font-black text-2xl shadow-2xl shadow-blue-500/30 hover:bg-blue-700 hover:scale-105 transition-all active:scale-95">العودة للوحة القيادة</button>
                  {onRequestMentorship && (
-                    <button onClick={onRequestMentorship} className="px-10 py-6 bg-white border-2 border-slate-100 text-blue-600 rounded-[2.5rem] font-black text-xl hover:bg-blue-50 transition-all">طلب استشارة خاصة 🤝</button>
+                    <button onClick={onRequestMentorship} className="px-12 py-7 glass border-2 border-blue-600/20 text-blue-600 dark:text-blue-400 rounded-[2.5rem] font-black text-2xl hover:bg-blue-600/5 transition-all active:scale-95">طلب استشارة خاصة 🤝</button>
                  )}
               </div>
            </div>
