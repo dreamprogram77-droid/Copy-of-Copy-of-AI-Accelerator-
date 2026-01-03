@@ -103,8 +103,8 @@ function App() {
             // لا نغير الأيقونة إذا كان المستخدم قد خصصها يدوياً
             if (userCustoms[lvl.id]?.icon) return lvl;
             return {
-              icon: iconMap[lvl.id] || lvl.icon,
-              ...lvl
+              ...lvl,
+              icon: iconMap[lvl.id] || lvl.icon
             };
           }));
         }
@@ -134,13 +134,11 @@ function App() {
       storageService.updateProgress(session.uid, id, { status: 'COMPLETED', score: 100, completedAt: new Date().toISOString() });
     }
     
-    setLevels(prev => {
-      const updated = prev.map(l => l.id === id ? { ...l, isCompleted: true } : l);
-      return updated.map((l, idx) => {
-        if (idx > 0 && updated[idx-1].isCompleted) return { ...l, isLocked: false };
-        return l;
-      });
-    });
+    handleHydrateAfterProgress();
+  };
+
+  const handleHydrateAfterProgress = () => {
+    hydrateSession();
     setStage(FiltrationStage.DASHBOARD);
   };
 
@@ -150,6 +148,27 @@ function App() {
       storageService.saveLevelCustomization(session.uid, id, { icon, customColor: color });
     }
     setLevels(prev => prev.map(l => l.id === id ? { ...l, icon, customColor: color } : l));
+  };
+
+  const handleAISuggestIcons = async () => {
+    try {
+      const session = storageService.getCurrentSession();
+      if (!session) return;
+      
+      const iconMap = await suggestIconsForLevels(levels);
+      if (Object.keys(iconMap).length > 0) {
+        Object.entries(iconMap).forEach(([id, emoji]) => {
+          storageService.saveLevelCustomization(session.uid, parseInt(id), { icon: emoji });
+        });
+        
+        setLevels(prev => prev.map(lvl => ({
+          ...lvl,
+          icon: iconMap[lvl.id] || lvl.icon
+        })));
+      }
+    } catch (err) {
+      throw err;
+    }
   };
 
   return (
@@ -243,6 +262,7 @@ function App() {
           onLogout={() => { localStorage.removeItem('db_current_session'); setActiveLevelId(null); setStage(FiltrationStage.LANDING); }} 
           onOpenProAnalytics={() => setStage(FiltrationStage.PROJECT_BUILDER)}
           onUpdateLevelUI={updateLevelUI}
+          onAISuggestIcons={handleAISuggestIcons}
         />
       )}
 
