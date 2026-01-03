@@ -1,6 +1,24 @@
 
 export type UserRole = 'STARTUP' | 'PARTNER' | 'MENTOR' | 'ADMIN';
 
+export interface Badge {
+  id: string;
+  name: string;
+  levelId: number;
+  icon: string;
+  description: string;
+  color: string;
+}
+
+export const ACADEMY_BADGES: Badge[] = [
+  { id: 'b1', levelId: 1, name: 'رائد أعمال طموح', icon: '🌟', description: 'اجتياز مرحلة التحقق الاستراتيجي من الفكرة.', color: 'from-blue-400 to-blue-600' },
+  { id: 'b2', levelId: 2, name: 'مخطط استراتيجي', icon: '📋', description: 'إتقان صياغة نماذج العمل التجارية المبتكرة.', color: 'from-emerald-400 to-emerald-600' },
+  { id: 'b3', levelId: 3, name: 'مهندس منتجات', icon: '⚙️', description: 'بناء النسخة الأولية القابلة للاختبار (MVP).', color: 'from-amber-400 to-amber-600' },
+  { id: 'b4', levelId: 4, name: 'محلل نمو', icon: '📊', description: 'فهم مؤشرات السوق وخطط الاستحواذ والنمو.', color: 'from-rose-400 to-rose-600' },
+  { id: 'b5', levelId: 5, name: 'خبير مالي', icon: '💎', description: 'بناء النماذج المالية وتوقعات التدفقات النقدية.', color: 'from-indigo-400 to-indigo-600' },
+  { id: 'b6', levelId: 6, name: 'رائد أعمال متمرس', icon: '👑', description: 'الجاهزية التامة لعرض المشروع على المستثمرين.', color: 'from-slate-700 to-slate-900' }
+];
+
 export interface Partner {
   name: string;
   role: string;
@@ -11,7 +29,7 @@ export interface UserProfile {
   role?: UserRole;
   firstName: string;
   lastName: string;
-  name?: string; // Full name helper
+  name?: string;
   email: string;
   phone: string;
   city?: string;
@@ -20,152 +38,89 @@ export interface UserProfile {
   agreedToContract: boolean;
   contractSignedAt?: string;
   
-  // Startup Specific
   startupName?: string;
   startupType?: 'Startup' | 'Existing' | 'Tech';
   startupDescription?: string;
   startupBio?: string;
   industry?: string;
   stage?: 'Idea' | 'MVP' | 'Growth' | 'InvestReady';
-  problem?: string;
-  solution?: string;
-  targetAudience?: string;
-  hasMVP?: boolean;
-  mvpLink?: string;
-  founderCount?: number;
+  logo?: string;
+  partners?: Partner[];
   founderBio?: string;
-  hasPartners?: boolean;
+  website?: string;
+  linkedin?: string;
+  earnedBadges?: string[]; // IDs of earned badges
+
+  // Registration specifics
   existingRoles?: string[];
   missingRoles?: string[];
   supportNeeded?: string[];
-  goal?: string;
-  commitmentDuration?: '3m' | '6m' | 'more';
-  website?: string;
-  logo?: string;
-  partners?: Partner[];
-
-  // Partner Specific
-  primaryRole?: 'Tech' | 'Sales' | 'Product' | 'Ops' | 'Finance' | 'CTO' | 'COO' | 'CMO' | 'CPO';
-  experienceYears?: number;
-  sectors?: string[];
-  skills?: string[];
-  workedInStartup?: boolean;
-  availability?: 'Part-time' | 'Full-time';
-  weeklyHours?: number;
-  partnershipType?: 'Equity' | 'Trial' | 'Project';
-  preferredStages?: string[];
-  github?: string;
-  portfolio?: string;
-  linkedin?: string;
-  achievement?: string;
-
-  // Mentor Specific
-  currentJob?: string;
   mentorExpertise?: string[];
   mentorSectors?: string[];
-  previousMentorExp?: boolean;
-  sessionCount?: number;
-  mentorshipTypes?: string[];
-  monthlySessions?: number;
-  mentorshipMode?: 'Remote' | 'On-site';
-  longTermMentorship?: boolean;
-  personalWebsite?: string;
+  skills?: string[];
 }
 
-export type TemplateStage = 'IDEA' | 'MVP' | 'GROWTH' | 'INVESTMENT';
-export interface TemplateField { id: string; label: string; type: 'text' | 'textarea' | 'select' | 'list'; placeholder?: string; options?: string[]; instruction: string; }
-export interface Template { id: string; title: string; stage: TemplateStage; icon: string; role: UserRole[]; isMandatory: boolean; fields: TemplateField[]; description: string; }
-export interface TemplateSubmission { templateId: string; uid: string; data: Record<string, any>; status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REVISION_REQUIRED'; aiScore?: number; aiFeedback?: string; updatedAt: string; }
+export interface LevelData {
+  id: number;
+  title: string;
+  description: string;
+  icon: string;
+  imageUrl: string;
+  isLocked: boolean;
+  isCompleted: boolean;
+  customColor?: string;
+}
 
-export const TEMPLATES_LIBRARY: Template[] = [
-  {
-    id: 'tp_problem_fit',
-    title: 'ملاءمة المشكلة والحل',
-    stage: 'IDEA',
-    icon: '🎯',
-    role: ['STARTUP'],
-    isMandatory: true,
-    description: 'توثيق الفهم العميق لمشكلة العميل وكيفية معالجتها.',
-    fields: [
-      { id: 'problem', label: 'المشكلة الجوهرية', type: 'textarea', instruction: 'صف الألم الذي يشعر به العميل في سطرين.', placeholder: 'يعاني أصحاب المتاجر من...' },
-      { id: 'alternatives', label: 'البدائل الحالية', type: 'textarea', instruction: 'كيف يحل العميل مشكلته الآن؟', placeholder: 'استخدام جداول إكسل يدوية...' },
-      { id: 'solution', label: 'الحل المقترح', type: 'textarea', instruction: 'كيف يغير منتجك حياة العميل؟', placeholder: 'منصة آلية تربط بين...' }
-    ]
-  }
+export interface TaskRecord {
+  id: string;
+  levelId: number;
+  uid: string;
+  title: string;
+  description: string;
+  status: 'LOCKED' | 'ASSIGNED' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  submission?: {
+    fileData: string;
+    fileName: string;
+    submittedAt: string;
+  };
+  aiReview?: {
+    score: number;
+    feedback: string;
+    isReadyForHuman: boolean;
+    readinessScore?: number;
+    criticalFeedback?: string;
+    suggestedNextSteps?: string[];
+  };
+}
+
+export const INITIAL_ROADMAP: LevelData[] = [
+  { id: 1, title: 'التحقق الاستراتيجي', description: 'التثبت من وجود مشكلة حقيقية في السوق والتحقق من الفرضيات.', icon: '🎯', imageUrl: 'https://images.unsplash.com/photo-1454165833767-13143891bb39?auto=format&fit=crop&q=80&w=600', isLocked: false, isCompleted: false },
+  { id: 2, title: 'هيكلة نموذج العمل', description: 'تصميم محرك الإيرادات والقيمة المضافة للمشروع.', icon: '📊', imageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=600', isLocked: true, isCompleted: false },
+  { id: 3, title: 'هندسة المنتج (MVP)', description: 'تحديد المزايا الجوهرية وبناء النسخة الأولى القابلة للاختبار.', icon: '🛠️', imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=600', isLocked: true, isCompleted: false },
+  { id: 4, title: 'تحليل الجدوى والنمو', description: 'دراسة حجم السوق، المنافسين، وخطط الاستحواذ.', icon: '📈', imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=600', isLocked: true, isCompleted: false },
+  { id: 5, title: 'النمذجة المالية', description: 'التوقعات المالية، التقييم، والاحتياج التمويلي.', icon: '💰', imageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&q=80&w=600', isLocked: true, isCompleted: false },
+  { id: 6, title: 'جاهزية الاستثمار', description: 'إعداد العرض التقديمي النهائي ومحاكاة لجان التحكيم.', icon: '🚀', imageUrl: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&q=80&w=600', isLocked: true, isCompleted: false }
 ];
 
-export interface TaskRecord { id: string; levelId: number; uid: string; title: string; description: string; status: 'LOCKED' | 'ASSIGNED' | 'SUBMITTED' | 'APPROVED'; submission?: { fileData: string; fileName: string; submittedAt: string; }; aiReview?: any; }
 export enum FiltrationStage { 
   LANDING = 'LANDING', 
-  AI_MENTOR_CONCEPT = 'AI_MENTOR_CONCEPT', 
-  PARTNER_CONCEPT = 'PARTNER_CONCEPT', 
   WELCOME = 'WELCOME', 
-  PATH_FINDER = 'PATH_FINDER', 
-  ROADMAP = 'ROADMAP', 
-  TOOLS = 'TOOLS', 
-  ACHIEVEMENTS = 'ACHIEVEMENTS', 
-  MENTORSHIP = 'MENTORSHIP', 
-  INCUBATION_PROGRAM = 'INCUBATION_PROGRAM', 
-  MEMBERSHIPS = 'MEMBERSHIPS', 
-  LOGIN = 'LOGIN', 
-  DASHBOARD = 'DASHBOARD', 
-  STAFF_PORTAL = 'STAFF_PORTAL',
-  FOREIGN_INVESTMENT = 'FOREIGN_INVESTMENT' 
+  DASHBOARD = 'DASHBOARD',
+  AI_MENTOR_CONCEPT = 'AI_MENTOR_CONCEPT',
+  ROADMAP = 'ROADMAP',
+  TOOLS = 'TOOLS',
+  LOGIN = 'LOGIN',
+  ACHIEVEMENTS = 'ACHIEVEMENTS',
+  MENTORSHIP = 'MENTORSHIP',
+  INCUBATION_PROGRAM = 'INCUBATION_PROGRAM',
+  MEMBERSHIPS = 'MEMBERSHIPS',
+  PARTNER_CONCEPT = 'PARTNER_CONCEPT',
+  FOREIGN_INVESTMENT = 'FOREIGN_INVESTMENT',
+  PATH_FINDER = 'PATH_FINDER',
+  STAFF_PORTAL = 'STAFF_PORTAL'
 }
 
-export interface ApplicantProfile {
-  codeName: string;
-  projectStage: ProjectStageType;
-  sector: string;
-  goal: string;
-  techLevel: TechLevelType;
-}
-
-export type ProjectStageType = 'Idea' | 'Prototype' | 'Product';
-export type TechLevelType = 'Low' | 'Medium' | 'High';
-
-export const SECTORS = [
-  { value: 'Tech', label: 'التقنية' },
-  { value: 'SaaS', label: 'البرمجيات كخدمة' },
-  { value: 'Fintech', label: 'التقنية المالية' },
-  { value: 'E-commerce', label: 'التجارة الإلكترونية' },
-  { value: 'Health', label: 'التقنية الصحية' },
-  { value: 'Industrial', label: 'صناعي' },
-  { value: 'Food', label: 'أغذية ومشروبات' }
-];
-
-export interface NominationData {
-  companyName: string;
-  founderName: string;
-  location: string;
-  pitchDeckUrl: string;
-  hasCommercialRegister: 'YES' | 'NO' | 'IN_PROGRESS';
-  hasTechnicalPartner: boolean;
-  problemStatement: string;
-  targetCustomerType: string[];
-  marketSize: 'SMALL' | 'MEDIUM' | 'LARGE' | 'UNKNOWN';
-  whyNow: string;
-  productStage: 'IDEA' | 'PROTOTYPE' | 'MVP' | 'TRACTION';
-  topFeatures: string;
-  executionPlan: 'NONE' | 'GENERAL' | 'WEEKLY';
-  userCount: '0' | '1-10' | '11-50' | '50+';
-  revenueModel: 'NOT_SET' | 'SUBSCRIPTION' | 'COMMISSION' | 'ANNUAL' | 'PAY_PER_USE';
-  customerAcquisitionPath: string;
-  incubationReason: string;
-  weeklyHours: 'LESS_5' | '5-10' | '10-20' | '20+';
-  agreesToWeeklySession: boolean;
-  agreesToKPIs: boolean;
-  isCommitted10Hours?: boolean;
-  demoUrl?: string;
-}
-
-export interface NominationResult {
-  totalScore: number;
-  category: 'DIRECT_ADMISSION' | 'INTERVIEW' | 'PRE_INCUBATION' | 'REJECTION';
-  redFlags: string[];
-  aiAnalysis: string;
-}
-
+// Added missing models for services and components
 export interface UserRecord {
   uid: string;
   firstName: string;
@@ -173,8 +128,11 @@ export interface UserRecord {
   email: string;
   role: UserRole;
   phone: string;
+  earnedBadges?: string[];
   founderBio?: string;
 }
+
+export type ProjectTrack = 'Idea' | 'Prototype' | 'Product' | 'MVP' | 'Growth' | 'Investment Ready';
 
 export interface StartupRecord {
   projectId: string;
@@ -183,25 +141,23 @@ export interface StartupRecord {
   name: string;
   description: string;
   industry: string;
-  currentTrack?: ProjectTrack;
   status: 'PENDING' | 'APPROVED' | 'STALLED';
   metrics: { readiness: number; tech: number; market: number };
   aiOpinion: string;
   lastActivity: string;
   partners: Partner[];
+  currentTrack?: ProjectTrack;
   startupBio?: string;
   website?: string;
   linkedin?: string;
   aiClassification?: 'Green' | 'Yellow' | 'Red';
 }
 
-export type ProjectTrack = 'Idea' | 'MVP' | 'Growth' | 'Investment Ready';
-
 export interface PartnerProfile {
   uid: string;
   name: string;
   email: string;
-  primaryRole: string;
+  primaryRole: 'CTO' | 'COO' | 'CMO' | 'CPO' | 'Finance';
   experienceYears: number;
   bio: string;
   linkedin: string;
@@ -210,20 +166,133 @@ export interface PartnerProfile {
   commitmentType: 'Part-time' | 'Full-time';
   city: string;
   isRemote: boolean;
-  workStyle: WorkStyle;
-  goals: PartnershipGoal;
+  workStyle: 'Fast' | 'Structured';
+  goals: 'Long-term' | 'Exit' | 'Growth';
   isVerified: boolean;
   profileCompletion: number;
 }
 
-export type WorkStyle = 'Fast' | 'Balanced' | 'Structured';
-export type PartnershipGoal = 'Short-term' | 'Long-term' | 'Project-based';
+export interface MatchResult {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  partnerUid: string;
+  scores: {
+    roleFit: number;
+    experienceFit: number;
+    industryFit: number;
+    styleFit: number;
+  };
+  totalScore: number;
+  reason: string;
+  reasoning: string[];
+  risk: string;
+}
+
+export const DIGITAL_SHIELDS = [
+  { id: 's1', name: 'التحقق الاستراتيجي', icon: '🎯', color: 'from-blue-400 to-blue-600' },
+  { id: 's2', name: 'هيكلة الأعمال', icon: '📊', color: 'from-emerald-400 to-emerald-600' },
+  { id: 's3', name: 'هندسة المنتج', icon: '🛠️', color: 'from-amber-400 to-amber-600' },
+];
+
+export const SECTORS = [
+  { value: 'Technology', label: 'التقنية والبرمجيات' },
+  { value: 'Fintech', label: 'التقنية المالية' },
+  { value: 'Food', label: 'الأغذية والمشروبات' },
+  { value: 'Industrial', label: 'القطاع الصناعي' },
+];
+
+export interface ServicePackage {
+  id: string;
+  name: string;
+  price: string;
+  features: string[];
+}
+
+export interface ServiceItem {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  packages: ServicePackage[];
+}
+
+export const SERVICES_CATALOG: ServiceItem[] = [
+  {
+    id: 's1',
+    title: 'تصميم الهوية البصرية',
+    description: 'بناء هوية تجارية متكاملة تعكس روح مشروعك الناشئ.',
+    icon: '🎨',
+    packages: [
+      { id: 'p1', name: 'الأساسية', price: '١٥٠٠ ريال', features: ['شعار', 'ألوان', 'خطوط'] },
+      { id: 'p2', name: 'المتكاملة', price: '٣٠٠٠ ريال', features: ['شعار', 'قرطاسية', 'دليل الهوية'] }
+    ]
+  }
+];
+
+export interface ServiceRequest {
+  id: string;
+  uid: string;
+  serviceId: string;
+  packageId: string;
+  details: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED';
+  createdAt: string;
+}
+
+export interface OpportunityAnalysis {
+  newMarkets: { region: string; reasoning: string; potentialROI: string }[];
+  blueOceanIdea: string;
+}
+
+export interface ProgramRating {
+  stars: number;
+  feedback: string;
+  favoriteFeature: string;
+  submittedAt: string;
+}
+
+export interface ApplicantProfile {
+  codeName: string;
+  projectStage: ProjectTrack;
+  sector: string;
+  goal: string;
+  techLevel: 'Low' | 'Medium' | 'High';
+}
+
+export type ProjectStageType = 'Idea' | 'Prototype' | 'Product';
+export type TechLevelType = 'Low' | 'Medium' | 'High';
+
+export interface PersonalityQuestion {
+  id: number;
+  situation: string;
+  options: { text: string; style: string }[];
+}
 
 export interface AnalyticalQuestion {
   text: string;
   options: string[];
   correctIndex: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
+}
+
+export interface RadarMetrics {
+  readiness: number;
+  analysis: number;
+  tech: number;
+  personality: number;
+  strategy: number;
+  ethics: number;
+}
+
+export interface FinalResult {
+  score: number;
+  isQualified: boolean;
+  metrics: RadarMetrics;
+  leadershipStyle: string;
+  projectEval?: ProjectEvaluationResult;
+  badges: Badge[];
 }
 
 export interface ProjectEvaluationResult {
@@ -239,11 +308,32 @@ export interface ProjectEvaluationResult {
   aiOpinion: string;
 }
 
-export interface AIReviewResult {
-  readinessScore: number;
-  criticalFeedback: string;
-  suggestedNextSteps: string[];
-  isReadyForHumanMentor: boolean;
+export type AgentCategory = 'Vision' | 'Market' | 'User' | 'Opportunity';
+
+export interface AIAgent {
+  id: string;
+  name: string;
+  description: string;
+  category: AgentCategory;
+}
+
+export const AVAILABLE_AGENTS: AIAgent[] = [
+  { id: 'v1', name: 'خبير الرؤية', description: 'صياغة رؤية بعيدة المدى.', category: 'Vision' },
+  { id: 'm1', name: 'محلل السوق', description: 'دراسة التوجهات والمنافسين.', category: 'Market' },
+];
+
+export interface ProjectBuildData {
+  projectName: string;
+  description: string;
+  quality: 'Quick' | 'Balanced' | 'Enhanced' | 'Professional' | 'Max';
+  selectedAgents: string[];
+  results?: {
+    vision?: string;
+    marketAnalysis?: string;
+    userPersonas?: string;
+    hypotheses?: string[];
+    pitchDeck?: { title: string; content: string }[];
+  };
 }
 
 export interface FailureSimulation {
@@ -262,151 +352,52 @@ export interface GovStats {
   regulatoryGaps: string[];
 }
 
-export interface Question {
-  text: string;
-  options: string[];
-  correctIndex: number;
-}
-
-export interface LevelData {
-  id: number;
-  title: string;
-  description: string;
-  icon: string;
-  isLocked: boolean;
-  isCompleted: boolean;
-  customColor?: string;
-}
-
-export const DIGITAL_SHIELDS = [
-  { id: 'shield_idea', name: 'درع الفكرة', icon: '💡', color: 'from-blue-500 to-cyan-500' },
-  { id: 'shield_mvp', name: 'درع النموذج', icon: '🛠️', color: 'from-emerald-500 to-teal-500' },
-  { id: 'shield_market', name: 'درع السوق', icon: '📊', color: 'from-amber-500 to-orange-500' }
-];
-
-export interface ServiceItem {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  packages: ServicePackage[];
-}
-
-export interface ServicePackage {
-  id: string;
-  name: string;
-  price: string;
-  features: string[];
-}
-
-export const SERVICES_CATALOG: ServiceItem[] = [
-  {
-    id: 's_dev',
-    title: 'تطوير MVP تقني',
-    description: 'بناء النسخة الأولى من منتجك.',
-    icon: '💻',
-    packages: [
-      { id: 'p_basic', name: 'أساسية', price: '5000$', features: ['Landing Page', 'Auth'] },
-      { id: 'p_pro', name: 'احترافية', price: '12000$', features: ['Mobile App', 'Backend'] }
-    ]
-  }
-];
-
-export interface ServiceRequest {
-  id: string;
-  uid: string;
-  serviceId: string;
-  packageId: string;
-  details: string;
-  status: 'PENDING' | 'COMPLETED';
-  requestedAt: string;
-}
-
-export interface OpportunityAnalysis {
-  newMarkets: { region: string; reasoning: string; potentialROI: string }[];
-  blueOceanIdea: string;
-}
-
-export interface ProgramRating {
-  stars: number;
-  feedback: string;
-  favoriteFeature: string;
-  submittedAt: string;
-}
-
-export interface PersonalityQuestion {
-  id: number;
-  situation: string;
-  options: { text: string; style: string }[];
-}
-
-export interface FinalResult {
-  score: number;
-  isQualified: boolean;
-  metrics: RadarMetrics;
-  leadershipStyle: string;
-  projectEval?: ProjectEvaluationResult;
-  badges: { id: string; name: string; icon: string }[];
-}
-
-export interface RadarMetrics {
-  readiness: number;
-  analysis: number;
-  tech: number;
-  personality: number;
-  strategy: number;
-  ethics: number;
-}
-
-export type AgentCategory = 'Vision' | 'Market' | 'User' | 'Opportunity';
-
-export interface AIAgent {
-  id: string;
-  name: string;
-  description: string;
-  category: AgentCategory;
-}
-
-export const AVAILABLE_AGENTS: AIAgent[] = [
-  { id: 'a_vision', name: 'وكيل الرؤية', description: 'صياغة الرؤية البعيدة.', category: 'Vision' },
-  { id: 'a_market', name: 'وكيل السوق', description: 'تحليل المنافسين.', category: 'Market' }
-];
-
-export interface ProjectBuildData {
-  projectName: string;
-  description: string;
-  quality: 'Quick' | 'Balanced' | 'Enhanced' | 'Professional' | 'Max';
-  selectedAgents: string[];
-  results?: {
-    vision: string;
-    marketAnalysis: string;
-    userPersonas: string;
-    hypotheses: string[];
-    pitchDeck?: { title: string; content: string }[];
-  };
-}
-
-export const TASKS_CONFIG: Partial<TaskRecord>[] = [
-  { id: 't1', levelId: 1, title: 'تحليل المشكلة', description: 'قدم تحليلاً معمقاً للمشكلة.' }
-];
-
-export interface PartnerMatchRequest {
-  projectId: string;
-  criteria: any;
-}
-
-export interface MatchScore {
-  partnerUid: string;
-  score: number;
-  reasoning: string[];
-  risk: string;
-}
-
 export interface ActivityLogRecord {
   id: string;
   uid: string;
   event: string;
-  timestamp: string;
+  type: string;
+  date: string;
+  score?: string;
+  color: string;
+}
+
+export const TASKS_CONFIG = [
+  { title: 'تحليل المشكلة', id: 't1' },
+  { title: 'نموذج العمل', id: 't2' },
+];
+
+export interface NominationData {
+  companyName: string;
+  founderName: string;
+  location: string;
+  pitchDeckUrl?: string;
+  hasCommercialRegister: 'YES' | 'NO' | 'IN_PROGRESS';
+  hasTechnicalPartner: boolean;
+  isCommitted10Hours: boolean;
+  problemStatement: string;
+  targetCustomerType: string[];
+  marketSize: 'SMALL' | 'MEDIUM' | 'LARGE' | 'UNKNOWN';
+  whyNow: string;
+  productStage: 'IDEA' | 'PROTOTYPE' | 'MVP' | 'TRACTION';
+  topFeatures: string;
+  executionPlan: 'NONE' | 'GENERAL' | 'WEEKLY';
+  userCount: '0' | '1-10' | '11-50' | '50+';
+  revenueModel: 'NOT_SET' | 'SUBSCRIPTION' | 'COMMISSION' | 'ANNUAL' | 'PAY_PER_USE';
+  customerAcquisitionPath: string;
+  incubationReason: string;
+  weeklyHours: 'LESS_5' | '5-10' | '10-20' | '20+';
+  agreesToWeeklySession: boolean;
+  agreesToKPIs: boolean;
+  demoUrl?: string;
+}
+
+export interface NominationResult {
+  aiScore: number;
+  totalScore: number;
+  category: 'DIRECT_ADMISSION' | 'INTERVIEW' | 'PRE_INCUBATION' | 'REJECTION';
+  redFlags: string[];
+  aiAnalysis: string;
 }
 
 export interface MentorProfile {
@@ -421,3 +412,44 @@ export interface MentorProfile {
   rating: number;
   tags: string[];
 }
+
+export interface TemplateField {
+  id: string;
+  label: string;
+  type: 'text' | 'textarea';
+  placeholder: string;
+  instruction: string;
+}
+
+export interface Template {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  isMandatory: boolean;
+  role: UserRole[];
+  fields: TemplateField[];
+}
+
+export interface TemplateSubmission {
+  templateId: string;
+  data: Record<string, string>;
+  aiScore: number;
+  aiFeedback: string;
+  status: 'DRAFT' | 'APPROVED' | 'REVISION_REQUIRED';
+  updatedAt: string;
+}
+
+export const TEMPLATES_LIBRARY: Template[] = [
+  {
+    id: 'bmc',
+    title: 'مخطط نموذج العمل',
+    description: 'هيكلة القيمة والإيرادات.',
+    icon: '📊',
+    isMandatory: true,
+    role: ['STARTUP'],
+    fields: [
+      { id: 'vp', label: 'القيمة المقترحة', type: 'textarea', placeholder: '...', instruction: 'ما الذي يميزك؟' }
+    ]
+  }
+];

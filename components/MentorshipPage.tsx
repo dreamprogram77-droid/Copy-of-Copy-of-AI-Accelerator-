@@ -24,7 +24,7 @@ const MOCK_MENTORS: MentorProfile[] = [
     role: 'خبير نمو الشركات الناشئة',
     company: 'GrowthOps Global',
     specialty: 'Growth',
-    bio: 'أكثر من ١٥ عاماً في مساعدة الشركات الناشئة على التوسع في الأسواق الخليجية وجذب الاستثمارات العالمية.',
+    bio: 'أكثر من ١٥ عاماً في مساعدة الشركات الناشئة على التوسع في الأسواق الخليجية وجذب الاستثمارات العالمية. خبير في استراتيجيات Go-to-Market وبناء مسارات الجذب (Traction). ساهم في نضج أكثر من ٢٠ شركة تقنية في المنطقة.',
     experience: 15,
     avatar: '👨‍💼',
     rating: 4.9,
@@ -36,7 +36,7 @@ const MOCK_MENTORS: MentorProfile[] = [
     role: 'كبير مهندسي البرمجيات',
     company: 'TechFlow',
     specialty: 'Tech',
-    bio: 'متخصصة في بناء البنية التحتية القابلة للتوسع وتطوير المنتجات الأولية (MVP) باستخدام أحدث تقنيات الـ AI.',
+    bio: 'متخصصة في بناء البنية التحتية القابلة للتوسع وتطوير المنتجات الأولية (MVP) باستخدام أحدث تقنيات الـ AI. تملك خبرة واسعة في بنية السحابة (Cloud Architecture) وإدارة الفرق التقنية الرشيقة.',
     experience: 10,
     avatar: '👩‍💻',
     rating: 4.8,
@@ -48,7 +48,7 @@ const MOCK_MENTORS: MentorProfile[] = [
     role: 'مستشار مالي واستثماري',
     company: 'Capital Bridges',
     specialty: 'Finance',
-    bio: 'ساعدت أكثر من ٥٠ شركة ناشئة في إغلاق جولات تمويلية ناجحة (Seed & Series A).',
+    bio: 'ساعدت أكثر من ٥٠ شركة ناشئة في إغلاق جولات تمويلية ناجحة (Seed & Series A). خبير في التقييم المالي، النمذجة المالية، وإعداد ملفات المستثمرين باحترافية عالية.',
     experience: 12,
     avatar: '🏦',
     rating: 5.0,
@@ -60,7 +60,7 @@ const MOCK_MENTORS: MentorProfile[] = [
     role: 'مستشارة قانونية ريادية',
     company: 'Legalize Hub',
     specialty: 'Legal',
-    bio: 'خبيرة في هيكلة الشركات الناشئة، اتفاقيات المساهمين، وحماية الملكية الفكرية.',
+    bio: 'خبيرة في هيكلة الشركات الناشئة، اتفاقيات المساهمين، وحماية الملكية الفكرية. تملك باعاً طويلاً في حل النزاعات التأسيسية وضمان الامتثال للأنظمة المحلية والدولية.',
     experience: 8,
     avatar: '👩‍⚖️',
     rating: 4.7,
@@ -72,7 +72,7 @@ const MOCK_MENTORS: MentorProfile[] = [
     role: 'محلل استراتيجيات أعمال',
     company: 'Vision Strategy',
     specialty: 'Strategy',
-    bio: 'شغوف بمساعدة المؤسسين على بناء نماذج عمل مستدامة وتحديد الميزة التنافسية في الأسواق المزدحمة.',
+    bio: 'شغوف بمساعدة المؤسسين على بناء نماذج عمل مستدامة وتحديد الميزة التنافسية في الأسواق المزدحمة. تخصص في منهجيات Lean Startup والتحول الرقمي للشركات التقليدية.',
     experience: 9,
     avatar: '🧩',
     rating: 4.8,
@@ -83,6 +83,7 @@ const MOCK_MENTORS: MentorProfile[] = [
 export const MentorshipPage: React.FC<MentorshipPageProps> = ({ user, onBack }) => {
   const [activeTab, setActiveTab] = useState<'browse' | 'register'>('browse');
   const [selectedMentor, setSelectedMentor] = useState<MentorProfile | null>(null);
+  const [detailedMentor, setDetailedMentor] = useState<MentorProfile | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [filterSpecialty, setFilterSpecialty] = useState('all');
@@ -227,7 +228,15 @@ export const MentorshipPage: React.FC<MentorshipPageProps> = ({ user, onBack }) 
                              <p className="text-xs font-black text-blue-500">{mentor.company}</p>
                           </div>
                           
-                          <p className="text-slate-500 text-xs leading-relaxed mb-6 line-clamp-3 font-medium">{mentor.bio}</p>
+                          <p className="text-slate-500 text-xs leading-relaxed mb-4 line-clamp-3 font-medium">{mentor.bio}</p>
+                          
+                          <button 
+                            onClick={() => { setDetailedMentor(mentor); playPositiveSound(); }}
+                            className="text-blue-600 text-[10px] font-black uppercase tracking-widest mb-6 hover:underline flex items-center gap-2"
+                          >
+                             عرض المزيد من التفاصيل
+                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7" strokeWidth={3} /></svg>
+                          </button>
                           
                           <div className="flex flex-wrap gap-2 mb-8">
                              {mentor.tags.map(tag => (
@@ -310,9 +319,85 @@ export const MentorshipPage: React.FC<MentorshipPageProps> = ({ user, onBack }) 
         )}
       </main>
 
+      {/* Detailed Mentor Profile Modal (The "Show More" functionality) */}
+      {detailedMentor && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in text-right">
+           <div className="bg-white rounded-[4rem] w-full max-w-3xl shadow-3xl border border-slate-100 animate-fade-in-up overflow-hidden max-h-[90vh] flex flex-col">
+              <div className="p-10 md:p-14 overflow-y-auto custom-scrollbar flex-1 space-y-12">
+                 <div className="flex justify-between items-start">
+                    <button onClick={() => setDetailedMentor(null)} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-500 transition-all active:scale-90">✕</button>
+                    <div className="flex items-center gap-8">
+                       <div className="text-right">
+                          <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest mb-3">Verified Mentor</div>
+                          <h2 className="text-4xl font-black text-slate-900 mb-2">{detailedMentor.name}</h2>
+                          <p className="text-lg font-bold text-blue-600">{detailedMentor.role} @ {detailedMentor.company}</p>
+                       </div>
+                       <div className="w-32 h-32 bg-slate-50 rounded-[2.5rem] flex items-center justify-center text-7xl shadow-inner border border-slate-100 shrink-0">
+                          {detailedMentor.avatar}
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-3 gap-6">
+                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 text-center">
+                       <p className="text-2xl font-black text-slate-900">{detailedMentor.experience}+</p>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">سنوات الخبرة</p>
+                    </div>
+                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 text-center">
+                       <p className="text-2xl font-black text-slate-900">{detailedMentor.rating}</p>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">متوسط التقييم</p>
+                    </div>
+                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 text-center">
+                       <p className="text-2xl font-black text-slate-900">{detailedMentor.specialty}</p>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">التخصص</p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-6">
+                    <h3 className="text-2xl font-black text-slate-900 flex items-center gap-4">
+                       <span className="w-2 h-8 bg-blue-600 rounded-full"></span>
+                       السيرة المهنية الكاملة
+                    </h3>
+                    <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
+                       <p className="text-xl text-slate-700 leading-relaxed font-medium">
+                         {detailedMentor.bio}
+                       </p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-6">
+                    <h3 className="text-2xl font-black text-slate-900 flex items-center gap-4">
+                       <span className="w-2 h-8 bg-emerald-500 rounded-full"></span>
+                       مجالات الإرشاد (Expertise)
+                    </h3>
+                    <div className="flex flex-wrap gap-4">
+                       {detailedMentor.tags.map(tag => (
+                         <div key={tag} className="px-6 py-3 bg-white border-2 border-slate-100 rounded-2xl text-slate-700 font-bold text-sm shadow-sm">
+                            #{tag}
+                         </div>
+                       ))}
+                       {detailedMentor.specialty === 'Growth' && <span className="px-6 py-3 bg-blue-50 border-2 border-blue-100 text-blue-700 rounded-2xl font-bold text-sm">استراتيجيات التوسع</span>}
+                       {detailedMentor.specialty === 'Tech' && <span className="px-6 py-3 bg-emerald-50 border-2 border-emerald-100 text-emerald-700 rounded-2xl font-bold text-sm">هندسة البرمجيات</span>}
+                    </div>
+                 </div>
+              </div>
+              
+              <div className="p-8 md:p-12 border-t border-slate-100 bg-slate-50 flex gap-6">
+                 <button onClick={() => setDetailedMentor(null)} className="flex-1 py-5 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-black text-lg hover:bg-slate-100 transition-all">إغلاق الملف</button>
+                 <button 
+                  onClick={() => { setDetailedMentor(null); setSelectedMentor(detailedMentor); setShowRequestModal(true); playPositiveSound(); }} 
+                  className="flex-[2] py-5 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95"
+                 >
+                    حجز جلسة إرشادية الآن 🚀
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* Mentorship Request Modal */}
       {showRequestModal && selectedMentor && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in text-right">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in text-right">
            <div className="bg-white rounded-[3rem] w-full max-w-xl shadow-2xl border border-slate-100 animate-fade-in-up overflow-hidden">
               <div className="p-8 md:p-12 space-y-8">
                  <div className="flex justify-between items-start">

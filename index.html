@@ -6,164 +6,108 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>بيزنس ديفلوبرز | المسرعة الذكية</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=IBM+Plex+Sans+Arabic:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@100;200;300;400;500;600;700;900&display=swap" rel="stylesheet">
     <style>
       :root {
         --primary: #2563eb;
-        --primary-hover: #1d4ed8;
-        --primary-glow: rgba(37, 99, 235, 0.15);
         --slate-50: #f8fafc;
         --slate-100: #f1f5f9;
         --slate-200: #e2e8f0;
-        --slate-300: #cbd5e1;
-        --slate-400: #94a3b8;
-        --slate-500: #64748b;
-        --slate-600: #475569;
-        --slate-700: #334155;
         --slate-800: #1e293b;
         --slate-900: #0f172a;
         --slate-950: #020617;
-        --radius-premium: 2.5rem;
+        --radius-corporate: 1rem;
+        --radius-elite: 2.5rem;
       }
 
       body {
         font-family: 'IBM Plex Sans Arabic', sans-serif;
-        background-color: var(--slate-50);
+        background-color: white;
         color: var(--slate-900);
-        scroll-behavior: smooth;
-        transition: background-color 0.5s ease, color 0.5s ease;
         -webkit-font-smoothing: antialiased;
+        scroll-behavior: smooth;
       }
 
       body.dark {
         background-color: var(--slate-950);
-        color: var(--slate-100);
+        color: #f1f5f9;
       }
 
-      /* Premium Typography */
-      h1, h2, h3, h4 { letter-spacing: -0.03em; line-height: 1.1; font-weight: 900; }
-      
-      .text-gradient {
-        background: linear-gradient(135deg, #2563eb, #6366f1, #d946ef);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-size: 200% auto;
-        animation: gradient-flow 5s ease infinite;
+      /* Typography Hierarchy */
+      h1, h2, h3, h4 { 
+        letter-spacing: -0.03em; 
+        line-height: 1.1; 
+        font-weight: 900; 
       }
 
-      @keyframes gradient-flow {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-      }
-
-      /* Glassmorphism System */
-      .glass {
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(24px) saturate(180%);
-        -webkit-backdrop-filter: blur(24px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-      }
-      body.dark .glass {
-        background: rgba(15, 23, 42, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-      }
-
-      /* Premium Card System */
+      /* Elite Sharp System - NO GRADIENTS */
       .card-premium {
         background: white;
-        border-radius: var(--radius-premium);
+        border-radius: var(--radius-elite);
         border: 1px solid var(--slate-200);
-        box-shadow: 0 4px 20px -10px rgba(0, 0, 0, 0.05);
         transition: all 0.5s cubic-bezier(0.2, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
       }
       body.dark .card-premium {
         background: var(--slate-900);
-        border-color: rgba(255, 255, 255, 0.03);
-        box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.5);
+        border-color: rgba(255, 255, 255, 0.05);
       }
       .card-premium:hover {
-        transform: translateY(-8px) scale(1.01);
         border-color: var(--primary);
-        box-shadow: 0 30px 60px -15px var(--primary-glow);
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.05);
       }
 
-      /* Premium Buttons */
-      .btn-primary {
-        @apply px-10 py-5 rounded-[1.8rem] font-black transition-all active:scale-95 flex items-center justify-center gap-3 bg-blue-600 text-white shadow-xl;
-        box-shadow: 0 15px 30px -10px rgba(37, 99, 235, 0.4);
+      /* Staggered Animations */
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
       }
-      .btn-primary:hover {
-        @apply bg-blue-700 -translate-y-1 shadow-2xl;
-        box-shadow: 0 20px 40px -12px rgba(37, 99, 235, 0.5);
+      .stagger-load > * {
+        opacity: 0;
+        animation: fadeInUp 0.8s cubic-bezier(0.2, 1, 0.3, 1) forwards;
       }
+      .stagger-load > *:nth-child(1) { animation-delay: 0.1s; }
+      .stagger-load > *:nth-child(2) { animation-delay: 0.2s; }
+      .stagger-load > *:nth-child(3) { animation-delay: 0.3s; }
+      .stagger-load > *:nth-child(4) { animation-delay: 0.4s; }
 
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: var(--slate-200); border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
+      .animate-fade-up { animation: fadeInUp 0.8s cubic-bezier(0.2, 1, 0.3, 1) forwards; }
+
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-thumb { background: var(--slate-200); border-radius: 10px; }
       body.dark ::-webkit-scrollbar-thumb { background: var(--slate-800); }
-      ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
-
-      /* Animation Engine */
-      @keyframes fade-in-up {
-        from { opacity: 0; transform: translateY(30px) scale(0.98); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
-      }
-      .animate-fade-up { animation: fade-in-up 0.8s cubic-bezier(0.2, 1, 0.3, 1) forwards; }
-      
-      @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-      }
-      .shimmer {
-        background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
-        background-size: 200% 100%;
-        animation: shimmer 2s infinite linear;
-      }
     </style>
     <script>
       tailwind.config = {
         darkMode: 'class',
         theme: {
           extend: {
-            fontFamily: {
-              sans: ['IBM Plex Sans Arabic', 'sans-serif'],
-              serif: ['Amiri', 'serif'],
-            },
-            borderRadius: {
-              'premium': '2.5rem',
-            },
-            colors: {
+            colors: { 
               primary: '#2563eb',
-              slate: {
-                950: '#020617',
-              }
+              'brand-dark': '#020617'
             },
-            boxShadow: {
-              'premium': '0 25px 60px -15px rgba(0, 0, 0, 0.1)',
-              'premium-dark': '0 25px 60px -15px rgba(0, 0, 0, 0.6)',
-            }
+            borderRadius: { 'premium': '2.5rem' }
           }
         }
       }
     </script>
     <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@19.0.0",
-        "react-dom": "https://esm.sh/react-dom@19.0.0",
-        "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
-        "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom",
-        "react-window": "https://esm.sh/react-window@1.8.10?external=react,react-dom",
-        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-        "react/": "https://esm.sh/react@^19.2.3/"
-      }
-    }
-    </script>
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "recharts": "https://esm.sh/recharts@^2.12.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
+  }
+}
+</script>
   </head>
-  <body class="antialiased selection:bg-blue-500/20 overflow-x-hidden">
+  <body class="antialiased overflow-x-hidden selection:bg-primary/10">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

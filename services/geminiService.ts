@@ -1,25 +1,15 @@
 
-// Fix: Added missing types and implemented callGemini helper and all exported functions according to guidelines.
 import { GoogleGenAI, Type } from "@google/genai";
 import { 
-  ApplicantProfile, 
-  NominationData, 
   StartupRecord, 
   PartnerProfile, 
-  NominationResult,
-  AnalyticalQuestion,
-  ProjectEvaluationResult,
-  AIReviewResult,
-  FailureSimulation,
-  GovStats,
-  Question
+  MatchResult
 } from "../types";
 
-// Helper to call Gemini API right before each request as per guidelines.
 const callGemini = async (params: { prompt: string; systemInstruction?: string; json?: boolean; schema?: any }) => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const config: any = {
-    temperature: 0.7,
+    temperature: 0.2, // Lower temperature for more consistent corporate logic
     topP: 0.95,
   };
 
@@ -50,12 +40,79 @@ const callGemini = async (params: { prompt: string; systemInstruction?: string; 
   return response.text;
 };
 
-export const evaluateTemplateAI = async (templateTitle: string, formData: any): Promise<{ score: number, feedback: string, approved: boolean }> => {
-  const prompt = `اسم القالب: ${templateTitle}\nالبيانات المدخلة: ${JSON.stringify(formData)}`;
-  
+// Fix: Exported runPartnerMatchAI for CoFounderPortal.tsx
+export const runPartnerMatchAI = async (startup: StartupRecord, partners: PartnerProfile[]): Promise<MatchResult[]> => {
+  return runSmartMatchingAlgorithmAI(startup, partners);
+};
+
+export const runSmartMatchingAlgorithmAI = async (startup: StartupRecord, partners: PartnerProfile[]): Promise<MatchResult[]> => {
+  const prompt = `
+    Startup Profile:
+    - Name: ${startup.name}
+    - Sector: ${startup.industry}
+    - Stage: ${startup.currentTrack}
+    - Business Description: ${startup.description}
+
+    Available Partners Database:
+    ${JSON.stringify(partners.map(p => ({
+      uid: p.uid,
+      name: p.name,
+      role: p.primaryRole,
+      exp: p.experienceYears,
+      skills: p.skills,
+      style: p.workStyle,
+      bio: p.bio
+    })))}
+
+    Objective: Match the startup with the top 10 potential partners based on:
+    1. Role Fit: Synergy between startup needs and partner's primary role.
+    2. Experience Fit: Maturity match between startup stage and partner's years of experience.
+    3. Industry Fit: Alignment in sector knowledge and previous background.
+    4. Style Fit: Compatibility in work style (e.g., Fast vs Structured).
+
+    Constraint: Return exactly 10 match objects. Reasoning must be in Arabic, professional and data-driven.
+  `;
+
   return callGemini({
     prompt,
-    systemInstruction: "أنت مستشار في مسرعة أعمال عالمية. قم بتقييم القالب بناءً على وضوح المنطق والجدوى. أرجع النتيجة بصيغة JSON حصراً.",
+    systemInstruction: "You are the Strategy Engine for an Elite Business Accelerator. Rank partners based on data-driven synergy. Your output must be a precise JSON array of the top 10 matches.",
+    json: true,
+    schema: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.STRING },
+          name: { type: Type.STRING },
+          role: { type: Type.STRING },
+          avatar: { type: Type.STRING },
+          partnerUid: { type: Type.STRING }, // Added for CoFounderPortal consistency
+          scores: {
+            type: Type.OBJECT,
+            properties: {
+              roleFit: { type: Type.NUMBER },
+              experienceFit: { type: Type.NUMBER },
+              industryFit: { type: Type.NUMBER },
+              styleFit: { type: Type.NUMBER }
+            },
+            required: ["roleFit", "experienceFit", "industryFit", "styleFit"]
+          },
+          totalScore: { type: Type.NUMBER },
+          reason: { type: Type.STRING },
+          reasoning: { type: Type.ARRAY, items: { type: Type.STRING } }, // Added for CoFounderPortal
+          risk: { type: Type.STRING } // Added for CoFounderPortal
+        },
+        required: ["id", "name", "role", "avatar", "scores", "totalScore", "reason"]
+      }
+    }
+  });
+};
+
+export const evaluateTemplateAI = async (templateTitle: string, formData: any) => {
+  const prompt = `Template: ${templateTitle}\nData: ${JSON.stringify(formData)}`;
+  return callGemini({
+    prompt,
+    systemInstruction: "Evaluate the following entrepreneurial deliverable. Return JSON with score, feedback, and approved boolean.",
     json: true,
     schema: {
       type: Type.OBJECT,
@@ -63,58 +120,63 @@ export const evaluateTemplateAI = async (templateTitle: string, formData: any): 
         score: { type: Type.NUMBER },
         feedback: { type: Type.STRING },
         approved: { type: Type.BOOLEAN }
-      },
-      required: ["score", "feedback", "approved"]
+      }
     }
   });
 };
 
-export const discoverOpportunities = async (name: string, desc: string, industry: string): Promise<{ newMarkets: any[], blueOceanIdea: string }> => {
-  const prompt = `اسم المشروع: ${name}\nالوصف: ${desc}\nالقطاع: ${industry}`;
+export const discoverOpportunities = async (name: string, desc: string, industry: string) => {
+  const prompt = `Name: ${name}\nDesc: ${desc}\nIndustry: ${industry}`;
   return callGemini({
     prompt,
-    systemInstruction: "استخدم وكلاء Gemini لاكتشاف أسواق جديدة غير مخدومة لمشروعك واستراتيجية محيط أزرق. أرجع JSON.",
+    systemInstruction: "Analyze market opportunities. Return JSON with newMarkets array and blueOceanIdea string.",
     json: true,
     schema: {
       type: Type.OBJECT,
       properties: {
-        newMarkets: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              region: { type: Type.STRING },
-              reasoning: { type: Type.STRING },
-              potentialROI: { type: Type.STRING }
-            }
-          }
-        },
+        newMarkets: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { region: { type: Type.STRING }, reasoning: { type: Type.STRING }, potentialROI: { type: Type.STRING } } } },
         blueOceanIdea: { type: Type.STRING }
-      },
-      required: ["newMarkets", "blueOceanIdea"]
+      }
     }
   });
 };
 
+// Fix: Exported suggestIconsForLevels for Dashboard.tsx
 export const suggestIconsForLevels = async () => {
-  // Logic to suggest UI updates via AI
-  return;
+  return callGemini({
+    prompt: "Suggest professional emoji icons and modern color themes for 6 accelerator levels.",
+    systemInstruction: "Return a JSON object mapping level IDs to icon and color names.",
+    json: true,
+    schema: {
+      type: Type.OBJECT,
+      properties: {
+        suggestions: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.NUMBER },
+              icon: { type: Type.STRING },
+              color: { type: Type.STRING }
+            }
+          }
+        }
+      }
+    }
+  });
 };
 
 export const generateLevelMaterial = async (id: number, title: string, user: any) => {
-  const prompt = `المستوى: ${id} - ${title}\nالمشروع: ${user.startupName}`;
-  const text = await callGemini({
-    prompt,
-    systemInstruction: "اكتب مادة تعليمية ريادية مكثفة وعملية لهذا المستوى. استخدم فقرات تفصلها سطرين."
-  });
+  const prompt = `Level ${id}: ${title} for startup ${user.startupName}`;
+  const text = await callGemini({ prompt, systemInstruction: "Provide professional, concise training material for this accelerator level." });
   return { content: text };
 };
 
-export const generateLevelQuiz = async (id: number, title: string, user: any): Promise<Question[]> => {
-  const prompt = `المستوى: ${id} - ${title}`;
+export const generateLevelQuiz = async (id: number, title: string, user: any) => {
+  const prompt = `Create a 3-question quiz for level ${id}: ${title}`;
   return callGemini({
     prompt,
-    systemInstruction: "ولد 3 أسئلة اختيارات من متعدد لاختبار استيعاب المحتوى. أرجع JSON ARRAY.",
+    systemInstruction: "Generate a quiz in JSON format.",
     json: true,
     schema: {
       type: Type.ARRAY,
@@ -124,18 +186,17 @@ export const generateLevelQuiz = async (id: number, title: string, user: any): P
           text: { type: Type.STRING },
           options: { type: Type.ARRAY, items: { type: Type.STRING } },
           correctIndex: { type: Type.NUMBER }
-        },
-        required: ["text", "options", "correctIndex"]
+        }
       }
     }
   });
 };
 
-export const reviewDeliverableAI = async (title: string, desc: string, context: string): Promise<AIReviewResult> => {
-  const prompt = `المهمة: ${title}\nالوصف: ${desc}\nسياق المشروع: ${context}`;
+export const reviewDeliverableAI = async (title: string, desc: string, context: string) => {
+  const prompt = `Deliverable: ${title}\nContext: ${context}`;
   return callGemini({
     prompt,
-    systemInstruction: "راجع المخرج التنفيذي المرفوع. أرجع JSON يحتوي على readinessScore, criticalFeedback, suggestedNextSteps, isReadyForHumanMentor.",
+    systemInstruction: "Review the deliverable and return a JSON score and feedback.",
     json: true,
     schema: {
       type: Type.OBJECT,
@@ -144,27 +205,16 @@ export const reviewDeliverableAI = async (title: string, desc: string, context: 
         criticalFeedback: { type: Type.STRING },
         suggestedNextSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
         isReadyForHumanMentor: { type: Type.BOOLEAN }
-      },
-      required: ["readinessScore", "criticalFeedback", "suggestedNextSteps", "isReadyForHumanMentor"]
+      }
     }
   });
 };
 
-export const createPathFinderChat = () => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  return ai.chats.create({
-    model: "gemini-3-flash-preview",
-    config: {
-      systemInstruction: "أنت مستشار ريادي خبير. حاور المستخدم لتحديد أهليته للبرنامج. في النهاية أرجع JSON مسيج بـ ```json يحتوي على decision (APPROVED/REJECTED), reason, feedback."
-    }
-  });
-};
-
-export const generateAnalyticalQuestions = async (profile: ApplicantProfile): Promise<AnalyticalQuestion[]> => {
-  const prompt = `القطاع: ${profile.sector}\nمرحلة المشروع: ${profile.projectStage}\nالتحدي: ${profile.goal}`;
+export const generateAnalyticalQuestions = async (profile: any) => {
+  const prompt = `Generate 5 analytical questions for: ${JSON.stringify(profile)}`;
   return callGemini({
     prompt,
-    systemInstruction: "ولد 5 أسئلة تحليلية ريادية مخصصة لهذا المتقدم. أرجع JSON ARRAY.",
+    systemInstruction: "Generate entrepreneurship assessment questions in JSON.",
     json: true,
     schema: {
       type: Type.ARRAY,
@@ -175,18 +225,17 @@ export const generateAnalyticalQuestions = async (profile: ApplicantProfile): Pr
           options: { type: Type.ARRAY, items: { type: Type.STRING } },
           correctIndex: { type: Type.NUMBER },
           difficulty: { type: Type.STRING }
-        },
-        required: ["text", "options", "correctIndex", "difficulty"]
+        }
       }
     }
   });
 };
 
-export const evaluateProjectIdea = async (text: string, profile: ApplicantProfile): Promise<ProjectEvaluationResult> => {
-  const prompt = `وصف الفكرة: ${text}\nالبروفايل: ${JSON.stringify(profile)}`;
+export const evaluateProjectIdea = async (text: string, profile: any) => {
+  const prompt = `Evaluate Idea: ${text}`;
   return callGemini({
     prompt,
-    systemInstruction: "حلل فكرة المشروع من حيث الجدوى والابتكار. أرجع JSON مفصل.",
+    systemInstruction: "Perform a deep SWOT and feasibility analysis. Return detailed JSON.",
     json: true,
     schema: {
       type: Type.OBJECT,
@@ -201,17 +250,34 @@ export const evaluateProjectIdea = async (text: string, profile: ApplicantProfil
         strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
         weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
         aiOpinion: { type: Type.STRING }
-      },
-      required: ["totalScore", "classification", "clarity", "value", "innovation", "market", "readiness", "strengths", "weaknesses", "aiOpinion"]
+      }
     }
   });
 };
 
-export const runProjectAgents = async (name: string, desc: string, agents: string[]) => {
-  const prompt = `مشروع: ${name}\nوصف: ${desc}\nالوكلاء المختارون: ${agents.join(',')}`;
+export const evaluateNominationForm = async (data: any) => {
+  const prompt = `Nomination: ${JSON.stringify(data)}`;
   return callGemini({
     prompt,
-    systemInstruction: "حاكي ردود وكلاء الذكاء الاصطناعي لبناء المشروع. أرجع JSON يحتوي على vision, market, users, hypotheses.",
+    systemInstruction: "Screen this accelerator application. Return JSON with aiScore, redFlags, and aiAnalysis.",
+    json: true,
+    schema: {
+      type: Type.OBJECT,
+      properties: {
+        aiScore: { type: Type.NUMBER },
+        redFlags: { type: Type.ARRAY, items: { type: Type.STRING } },
+        aiAnalysis: { type: Type.STRING }
+      }
+    }
+  });
+};
+
+// Fix: Exported runProjectAgents for ProjectBuilderMain.tsx
+export const runProjectAgents = async (projectName: string, description: string, agents: string[]) => {
+  const prompt = `Project: ${projectName}\nDesc: ${description}\nAgents: ${agents.join(', ')}`;
+  return callGemini({
+    prompt,
+    systemInstruction: "Simulate entrepreneurial agents (Vision, Market, User, Opportunity) to generate vision, market analysis, user personas, and hypotheses.",
     json: true,
     schema: {
       type: Type.OBJECT,
@@ -225,11 +291,12 @@ export const runProjectAgents = async (name: string, desc: string, agents: strin
   });
 };
 
-export const generatePitchDeck = async (name: string, desc: string, results: any) => {
-  const prompt = `المشروع: ${name}\nنتائج البناء: ${JSON.stringify(results)}`;
+// Fix: Exported generatePitchDeck for ProjectBuilderMain.tsx
+export const generatePitchDeck = async (projectName: string, description: string, context: any) => {
+  const prompt = `Project: ${projectName}\nDesc: ${description}\nContext: ${JSON.stringify(context)}`;
   return callGemini({
     prompt,
-    systemInstruction: "صغ عرضاً تقديمياً (Pitch Deck) استثمارياً من 7 شرائح. أرجع JSON ARRAY من شرائح تحتوي على title و content.",
+    systemInstruction: "Generate a professional 10-slide pitch deck based on the provided project context.",
     json: true,
     schema: {
       type: Type.ARRAY,
@@ -244,11 +311,12 @@ export const generatePitchDeck = async (name: string, desc: string, results: any
   });
 };
 
+// Fix: Exported analyzeExportOpportunity for ExportDecisionEngine.tsx
 export const analyzeExportOpportunity = async (data: any) => {
-  const prompt = JSON.stringify(data);
+  const prompt = `Export Data: ${JSON.stringify(data)}`;
   return callGemini({
     prompt,
-    systemInstruction: "أنت محرك NEDE لاتخاذ قرار التصدير. حلل البيانات وأعط قراراً وتوصيات. أرجع JSON.",
+    systemInstruction: "Analyze export potential using NEDE engine logic. Return decision, analysis points, and recommendations.",
     json: true,
     schema: {
       type: Type.OBJECT,
@@ -269,11 +337,12 @@ export const analyzeExportOpportunity = async (data: any) => {
   });
 };
 
-export const simulateBrutalTruth = async (data: any): Promise<FailureSimulation> => {
-  const prompt = JSON.stringify(data);
+// Fix: Exported simulateBrutalTruth for SmartFeatures.tsx
+export const simulateBrutalTruth = async (data: any) => {
+  const prompt = `Business Idea for Brutal Truth: ${JSON.stringify(data)}`;
   return callGemini({
     prompt,
-    systemInstruction: "أنت محرك 'الحقيقة القاسية'. كن ناقداً ومباشراً جداً حول احتمالات فشل المشروع. أرجع JSON.",
+    systemInstruction: "Act as a brutally honest VC. Identify critical flaws and potential failure scenarios.",
     json: true,
     schema: {
       type: Type.OBJECT,
@@ -289,10 +358,11 @@ export const simulateBrutalTruth = async (data: any): Promise<FailureSimulation>
   });
 };
 
-export const getGovInsights = async (): Promise<GovStats> => {
+// Fix: Exported getGovInsights for GovDashboard.tsx
+export const getGovInsights = async () => {
   return callGemini({
-    prompt: "أعط رؤى استراتيجية للجهات الحكومية حول قطاعات التصدير.",
-    systemInstruction: "أرجع JSON يحتوي على riskyMarkets, readySectors, commonFailReasons, regulatoryGaps.",
+    prompt: "Generate macroeconomic insights for government entities monitoring the startup ecosystem.",
+    systemInstruction: "Provide statistics on risky markets, ready sectors, and common failure reasons.",
     json: true,
     schema: {
       type: Type.OBJECT,
@@ -306,43 +376,47 @@ export const getGovInsights = async (): Promise<GovStats> => {
   });
 };
 
-export const generateStartupIdea = async (form: any) => {
-  const prompt = `اهتماماتي: ${form.interest}\nالقطاع: ${form.sector}`;
+// Fix: Exported generateStartupIdea for ToolsPage.tsx
+export const generateStartupIdea = async (form: { sector: string; interest: string }) => {
+  const prompt = `Sector: ${form.sector}\nInterests: ${form.interest}`;
   return callGemini({
     prompt,
-    systemInstruction: "اقترح 3 أفكار لمشاريع ناشئة ابتكارية. أرجع نصاً منسقاً بالماركداون."
+    systemInstruction: "Generate 3 innovative startup ideas. For each, provide a name, value proposition, and market advantage. Format as professional Markdown."
   });
 };
 
-export const generateFounderCV = async (form: any) => {
-  const prompt = JSON.stringify(form);
+// Fix: Exported generateProjectDetails for ToolsPage.tsx
+export const generateProjectDetails = async (form: any) => {
   return callGemini({
-    prompt,
-    systemInstruction: "صمم بروفايل مؤسس (CV) ريادي احترافي يركز على المهارات والرؤية. أرجع نصاً منسقاً."
+    prompt: `Generate detailed project requirements for: ${JSON.stringify(form)}`,
+    systemInstruction: "Provide comprehensive project specifications in Markdown."
   });
 };
 
-export const generateProductSpecs = async (form: any) => {
-  const prompt = `المشروع: ${form.projectName}\nالوصف: ${form.description}`;
+// Fix: Exported generateProductSpecs for ToolsPage.tsx
+export const generateProductSpecs = async (form: { projectName: string; description: string }) => {
+  const prompt = `Project: ${form.projectName}\nDesc: ${form.description}`;
   return callGemini({
     prompt,
-    systemInstruction: "حدد المزايا الجوهرية (Core Features) للـ MVP وصمم رحلة المستخدم. أرجع نصاً منسقاً."
+    systemInstruction: "Define MVP specifications, core features, and user flow. Format as Markdown."
   });
 };
 
+// Fix: Exported generateLeanBusinessPlan for ToolsPage.tsx
 export const generateLeanBusinessPlan = async (form: any) => {
-  const prompt = JSON.stringify(form);
+  const prompt = `Lean Plan Data: ${JSON.stringify(form)}`;
   return callGemini({
     prompt,
-    systemInstruction: "ابنِ خطة عمل مرنة (Lean Business Plan) تغطي كافة المحاور الاستراتيجية. أرجع نصاً منسقاً."
+    systemInstruction: "Generate a Lean Business Plan including Revenue model, Distribution channels, and Cost structure. Format as Markdown."
   });
 };
 
+// Fix: Exported generatePitchDeckOutline for ToolsPage.tsx
 export const generatePitchDeckOutline = async (form: any) => {
-  const prompt = JSON.stringify(form);
+  const prompt = `Pitch Data: ${JSON.stringify(form)}`;
   return callGemini({
     prompt,
-    systemInstruction: "صغ هيكلاً قوياً لعرض تقديمي استثماري. أرجع JSON يحتوي على slides ARRAY.",
+    systemInstruction: "Create a 7-slide strategic pitch deck outline with slide titles and bullet points. Return JSON with 'slides' array.",
     json: true,
     schema: {
       type: Type.OBJECT,
@@ -362,46 +436,21 @@ export const generatePitchDeckOutline = async (form: any) => {
   });
 };
 
-export const evaluateNominationForm = async (data: NominationData): Promise<{ aiScore: number, redFlags: string[], aiAnalysis: string }> => {
-  const prompt = JSON.stringify(data);
+// Fix: Exported generateFounderCV for ToolsPage.tsx
+export const generateFounderCV = async (form: any) => {
+  const prompt = `Founder Profile: ${JSON.stringify(form)}`;
   return callGemini({
     prompt,
-    systemInstruction: "قيم طلب الترشيح للمسرعة. أعطِ درجة من 20 ورصد أي علامات خطر (Red Flags). أرجع JSON.",
-    json: true,
-    schema: {
-      type: Type.OBJECT,
-      properties: {
-        aiScore: { type: Type.NUMBER },
-        redFlags: { type: Type.ARRAY, items: { type: Type.STRING } },
-        aiAnalysis: { type: Type.STRING }
-      },
-      required: ["aiScore", "redFlags", "aiAnalysis"]
-    }
+    systemInstruction: "Write a high-impact, investment-ready founder bio and CV summary. Format as Markdown."
   });
 };
 
-export const runPartnerMatchAI = async (startup: StartupRecord, partners: PartnerProfile[]) => {
-  const prompt = `المشروع: ${JSON.stringify(startup)}\nقائمة الشركاء: ${JSON.stringify(partners)}`;
-  return callGemini({
-    prompt,
-    systemInstruction: "قم بمطابقة المشروع مع أفضل الشركاء المتاحين. أرجع JSON ARRAY من {partnerUid, score, reasoning, risk}.",
-    json: true,
-    schema: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          partnerUid: { type: Type.STRING },
-          score: { type: Type.NUMBER },
-          reasoning: { type: Type.ARRAY, items: { type: Type.STRING } },
-          risk: { type: Type.STRING }
-        },
-        required: ["partnerUid", "score", "reasoning", "risk"]
-      }
+export const createPathFinderChat = () => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return ai.chats.create({
+    model: "gemini-3-flash-preview",
+    config: {
+      systemInstruction: "You are a professional business advisor. Guide the user through a qualification interview. Finally return JSON within markdown code blocks with decision, reason, and feedback."
     }
   });
-};
-
-export const generateProjectDetails = async (form: any) => {
-  return generateStartupIdea(form);
 };

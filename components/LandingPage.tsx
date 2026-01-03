@@ -1,8 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Language, getTranslation } from '../services/i18nService';
-import { LanguageSwitcher } from './LanguageSwitcher';
-import { Footer } from './Footer';
 
 interface LandingPageProps {
   onStart: () => void;
@@ -17,7 +15,7 @@ interface LandingPageProps {
   onMemberships: () => void;
   onPartnerConcept: () => void;
   onAIMentorConcept: () => void;
-  onForeignInvestment: () => void; // New prop
+  onForeignInvestment: () => void;
   onLegalClick: (type: 'PRIVACY' | 'TERMS' | 'CONTACT') => void;
   onLogin?: () => void;
   lang: Language;
@@ -25,212 +23,172 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ 
-  onStart, onPathFinder, onRoadmap, onTools, onAchievements, 
-  onMentorship, onIncubation, onMemberships, onLegalClick, onLogin,
-  onPartnerConcept, onAIMentorConcept, onForeignInvestment,
-  lang, onLanguageChange
+  onStart, onRoadmap, onTools, onMentorship, onIncubation, 
+  onMemberships, onPartnerConcept, onLogin, onAchievements,
+  onAIMentorConcept,
+  lang 
 }) => {
   const [scrolled, setScrolled] = useState(false);
-  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const t = getTranslation(lang);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    if (isDark) {
-      document.body.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.body.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDark]);
-
-  const toggleTheme = () => setIsDark(!isDark);
-
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`} dir={t.dir}>
-      {/* Dynamic Background Effects */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className={`absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[120px] transition-opacity duration-1000 ${isDark ? 'bg-blue-600/10' : 'bg-blue-500/5'}`}></div>
-        <div className={`absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[100px] transition-opacity duration-1000 ${isDark ? 'bg-indigo-600/10' : 'bg-indigo-500/5'}`}></div>
-      </div>
-
-      {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${scrolled ? 'py-3 glass border-b border-black/5 dark:border-white/5' : 'py-6 bg-transparent'}`}>
-        <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => window.scrollTo({top:0, behavior:'smooth'})}>
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg transform group-hover:rotate-6 transition-transform">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-6 w-6 text-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-slate-900 dark:text-white transition-colors duration-500" dir="rtl">
+      
+      {/* Precision Navigation */}
+      <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 px-8 ${scrolled ? 'py-4 bg-white/95 dark:bg-slate-950/95 border-b border-slate-200 dark:border-slate-800 backdrop-blur-md shadow-sm' : 'py-8 bg-transparent'}`}>
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-4 group cursor-pointer">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:rotate-6">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="h-6 w-6 text-white">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
               </svg>
             </div>
-            <div className="flex flex-col">
-              <span className={`text-lg font-black tracking-tight leading-none uppercase ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.brand}</span>
-              <span className="text-[9px] font-bold text-primary uppercase tracking-widest mt-1 opacity-80">Virtual Accelerator</span>
-            </div>
+            <h1 className="text-xl font-black tracking-tight uppercase leading-none">بيزنس ديفلوبرز</h1>
           </div>
           
-          {/* Desktop Menu */}
-          <div className="hidden lg:flex gap-8 items-center">
-            <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-2xl">
-                <button onClick={onIncubation} className="px-4 py-2 rounded-xl text-[10px] font-black text-slate-500 hover:text-primary transition-all">شركة محتضنة</button>
-                <button onClick={onPartnerConcept} className="px-4 py-2 rounded-xl text-[10px] font-black text-slate-500 hover:text-emerald-500 transition-all">شريك</button>
-                <button onClick={onMentorship} className="px-4 py-2 rounded-xl text-[10px] font-black text-slate-500 hover:text-purple-500 transition-all">مرشد</button>
-                <button onClick={onForeignInvestment} className="px-4 py-2 rounded-xl text-[10px] font-black text-blue-600 hover:bg-blue-50 transition-all">الاستثمار الأجنبي</button>
-            </div>
-
-            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
-
-            <button onClick={onAIMentorConcept} className="text-[11px] font-black text-primary flex items-center gap-2 hover:opacity-70 transition-opacity">
-               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-               {t.nav.aiMentor}
-            </button>
-            <button onClick={onTools} className="text-[11px] font-black text-slate-500 hover:text-primary transition-all">{t.nav.tools}</button>
-            
-            <LanguageSwitcher currentLang={lang} onLanguageChange={onLanguageChange} variant="minimal" />
-
-            <button onClick={toggleTheme} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-lg">
-              {isDark ? '☀️' : '🌙'}
-            </button>
-
-            <button onClick={onLogin} className={`text-[11px] font-black ${isDark ? 'text-white' : 'text-slate-900'} hover:text-primary transition-all`}>{t.nav.login}</button>
-            <button onClick={onStart} className="bg-primary text-white px-6 py-3 rounded-2xl text-[11px] font-black hover:opacity-90 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">ابدأ الآن</button>
+          <div className="hidden lg:flex items-center gap-10 font-bold text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
+             <button onClick={onIncubation} className="hover:text-blue-600 transition-colors">عن البرنامج</button>
+             <button onClick={onRoadmap} className="hover:text-blue-600 transition-colors">الخارطة</button>
+             <button onClick={onTools} className="hover:text-blue-600 transition-colors">الأدوات</button>
+             <button onClick={onAchievements} className="hover:text-blue-600 transition-colors">الأثر</button>
+             <div className="w-px h-4 bg-slate-200 dark:bg-slate-800"></div>
+             <button onClick={onLogin} className="text-slate-900 dark:text-white hover:text-blue-600 transition-colors">دخول</button>
+             <button onClick={onStart} className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-black shadow-xl hover:bg-blue-700 transition-all active:scale-95">ابدأ الآن</button>
           </div>
-
-          {/* Mobile Menu Trigger */}
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 text-slate-500">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-            </svg>
-          </button>
         </div>
-
-        {/* Mobile Menu Overlay */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden glass border-t border-black/5 dark:border-white/5 p-6 space-y-6 animate-fade-up">
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={onIncubation} className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl text-[10px] font-black text-center">المحتضنين</button>
-              <button onClick={onForeignInvestment} className="p-4 bg-blue-50 rounded-2xl text-[10px] font-black text-center text-blue-600">الاستثمار الأجنبي</button>
-            </div>
-            <div className="space-y-4">
-              <button onClick={onTools} className="block w-full text-right text-sm font-black p-2">{t.nav.tools}</button>
-              <button onClick={onRoadmap} className="block w-full text-right text-sm font-black p-2">{t.nav.roadmap}</button>
-              <button onClick={onLogin} className="block w-full text-right text-sm font-black p-2 text-primary">{t.nav.login}</button>
-            </div>
-            <button onClick={onStart} className="w-full bg-primary text-white py-4 rounded-2xl font-black">ابدأ مجاناً</button>
-          </div>
-        )}
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative pt-40 pb-20 px-6 overflow-hidden">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
-          <div className="flex-1 space-y-8 animate-fade-up text-center lg:text-right">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full border border-primary/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-              <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{t.subtitle}</span>
+      {/* Hero Section — Data & Minimal Tech Imagery */}
+      <section className="pt-56 pb-40 px-8 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+          <div className="space-y-12 animate-fade-up">
+            <div className="inline-flex items-center gap-4 px-5 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-blue-100 dark:border-blue-800">
+              <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
+              Virtual Acceleration Core v2.8
+            </div>
+            <h1 className="text-7xl md:text-9xl font-black text-slate-950 dark:text-white leading-[0.95] tracking-tighter">
+              ابنِ مشروعك <br/> <span className="text-blue-600">بمعايير عالمية.</span>
+            </h1>
+            <p className="text-xl md:text-2xl text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed font-medium">
+              المنصة الرسمية المعتمدة لتحويل الأفكار الريادية إلى كيانات قابلة للاستثمار عبر محرك Gemini الذكي.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-5 pt-4">
+              <button onClick={onStart} className="px-12 py-5 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-2xl hover:bg-blue-700 transition-all active:scale-95">ابدأ رحلة البناء</button>
+              <button onClick={onAIMentorConcept} className="px-12 py-5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl font-black text-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 transition-all flex items-center justify-center gap-3">
+                 <span>تجربة الموجه الذكي</span>
+                 <span className="text-blue-600">🤖</span>
+              </button>
             </div>
             
-            <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black leading-[1.1] tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {t.hero.title} <br/> 
-              <span className="text-gradient">{t.hero.titleAccent}</span>
-            </h1>
-            
-            <p className={`text-lg md:text-xl max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium opacity-70 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-              {t.hero.desc}
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-6">
-              <button onClick={onStart} className="px-10 py-5 bg-primary hover:opacity-90 text-white text-lg font-black rounded-3xl shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-3 active:scale-95 group">
-                <span>{t.hero.cta}</span>
-                <svg className="w-6 h-6 transition-transform group-hover:translate-x-[-4px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </button>
-              <button onClick={onRoadmap} className={`px-10 py-5 glass border border-black/5 dark:border-white/10 rounded-3xl text-lg font-black transition-all hover:bg-slate-100 dark:hover:bg-white/5 ${isDark ? 'text-white' : 'text-slate-700'}`}>
-                اكتشف الخارطة
-              </button>
+            {/* Real Impact Counters */}
+            <div className="grid grid-cols-3 gap-12 pt-16 border-t border-slate-100 dark:border-white/5">
+               <div>
+                  <p className="text-5xl font-black text-slate-900 dark:text-white tabular-nums">1.4K</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">رائد أعمال نشط</p>
+               </div>
+               <div>
+                  <p className="text-5xl font-black text-slate-900 dark:text-white tabular-nums">12M$</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">تمويل مستقطب</p>
+               </div>
+               <div>
+                  <p className="text-5xl font-black text-blue-600 tabular-nums">98%</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">دقة التقييم</p>
+               </div>
             </div>
           </div>
 
-          <div className="flex-1 w-full relative animate-fade-up" style={{ animationDelay: '0.2s' }}>
-             <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-indigo-600 rounded-[3rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-                <div className={`relative p-1 rounded-[3rem] ${isDark ? 'bg-slate-800' : 'bg-white shadow-2xl'}`}>
-                   <div className="p-8 md:p-12 space-y-12">
-                      <div className="flex justify-between items-center">
-                         <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-white shadow-xl">
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                         </div>
-                         <div className="flex gap-2">
-                           <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
-                           <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
-                           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-                         </div>
-                      </div>
-                      <div className="space-y-4">
-                        <div className="h-4 bg-slate-100 dark:bg-white/5 rounded-full w-3/4"></div>
-                        <div className="h-4 bg-slate-100 dark:bg-white/5 rounded-full w-1/2"></div>
-                        <div className="h-20 bg-primary/5 dark:bg-white/5 rounded-3xl flex items-center justify-center">
-                           <p className="text-primary font-black text-xs uppercase tracking-widest animate-pulse">AI Strategic Scan Active...</p>
-                        </div>
+          <div className="relative group stagger-load">
+             <div className="aspect-[4/5] rounded-[4rem] bg-slate-100 dark:bg-slate-900 overflow-hidden border border-slate-200 dark:border-white/10 relative shadow-3xl">
+                <img 
+                  src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=1200" 
+                  alt="Corporate Building" 
+                  className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-1000"
+                />
+                <div className="absolute inset-0 bg-blue-900/10 mix-blend-multiply"></div>
+                
+                {/* Floating Insight UI */}
+                <div className="absolute bottom-10 right-10 left-10 p-10 bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl rounded-[3rem] shadow-2xl border border-white/20 animate-fade-up">
+                   <div className="flex items-center gap-4 mb-6">
+                      <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg">🤖</div>
+                      <div>
+                         <p className="text-xs font-black dark:text-white text-slate-900">تحليل Gemini اللحظي</p>
+                         <p className="text-[9px] font-bold text-blue-600 uppercase tracking-widest">Active Intelligence</p>
                       </div>
                    </div>
+                   <p className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">
+                      "النظام يرصد ارتفاعاً بنسبة ٢٤٪ في جاهزية مشاريع قطاع Fintech هذا الأسبوع."
+                   </p>
                 </div>
              </div>
+             
+             {/* Decorative Elements */}
+             <div className="absolute -top-12 -left-12 w-48 h-48 bg-blue-600/5 rounded-full blur-[80px] -z-10"></div>
           </div>
         </div>
       </section>
 
-      {/* Feature Grid */}
-      <section className="py-32 px-6">
-         <div className="max-w-7xl mx-auto space-y-20">
-            <div className="text-center space-y-4">
-               <h2 className="text-4xl md:text-5xl font-black tracking-tight">مساراتنا الاستراتيجية</h2>
-               <p className="text-slate-500 font-medium max-w-2xl mx-auto">منظومة ريادية متكاملة صممت لتلبي طموحاتك في كل مرحلة من مراحل نمو مشروعك.</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-               {[
-                 { title: 'شركة محتضنة', desc: 'ابدأ رحلة نضج مشروعك من الفكرة إلى الاستثمار تحت إشراف نخبة من الموجهين.', icon: '🚀', color: 'blue', action: onIncubation },
-                 { title: 'شريك مؤسس', desc: 'استثمر خبراتك في مشاريع ناشئة واعدة مقابل حصص ملكية استراتيجية.', icon: '🤝', color: 'emerald', action: onPartnerConcept },
-                 { title: 'استثمار أجنبي', desc: 'احصل على رخصة MISA وبرنامج الإقامة المميزة لتأسيس مشروعك العالمي في المملكة.', icon: '🇸🇦', color: 'purple', action: onForeignInvestment }
-               ].map((item, i) => (
-                 <div key={i} onClick={item.action} className="card-premium p-10 cursor-pointer group flex flex-col">
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-8 transition-transform group-hover:scale-110 group-hover:rotate-6 ${isDark ? 'bg-white/5 shadow-inner' : 'bg-slate-50'}`}>
-                      {item.icon}
-                    </div>
-                    <h3 className="text-2xl font-black mb-4 group-hover:text-primary transition-colors">{item.title}</h3>
-                    <p className="text-slate-500 text-sm leading-relaxed mb-8 flex-grow">{item.desc}</p>
-                    <span className="text-[10px] font-black text-primary uppercase tracking-widest group-hover:translate-x-[-5px] transition-transform flex items-center gap-2">
-                       ابدأ الآن 
-                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 19l-7-7 7-7" strokeWidth={3} /></svg>
-                    </span>
-                 </div>
-               ))}
+      {/* Ecosystem Section — Icons & Systematic Data */}
+      <section className="py-40 bg-slate-50 dark:bg-slate-900/40 border-y border-slate-100 dark:border-slate-900">
+        <div className="max-w-7xl mx-auto px-8">
+           <div className="text-center mb-24 space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">منظومة ريادية متكاملة</h2>
+              <p className="text-slate-500 max-w-2xl mx-auto text-xl font-medium">نجمع لك كافة الأدوار التي يحتاجها مشروعك للنمو في مكان واحد.</p>
+           </div>
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+              {[
+                { t: 'المؤسسون (Startups)', d: 'أدوات بناء المشروع، التحقق من الفكرة، والوصول للجاهزية.', i: '🚀', stat: '480 مشروعاً' },
+                { t: 'الشركاء (Co-Founders)', d: 'نظام مطابقة ذكي يربط المهارات التقنية بالفرص الريادية.', i: '🤝', stat: '120 شريكاً معتمداً' },
+                { t: 'الخبراء (Mentors)', d: 'جلسات إرشاد متخصصة بعد تخطي مرحلة التدقيق الذكي.', i: '🧠', stat: '65 مرشداً متخصصاً' }
+              ].map((item, i) => (
+                <div key={i} className="p-12 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-[3.5rem] card-premium transition-all">
+                  <div className="text-5xl mb-10 bg-slate-50 dark:bg-white/5 w-24 h-24 rounded-3xl flex items-center justify-center shadow-inner group-hover:rotate-6 transition-transform">{item.i}</div>
+                  <h4 className="text-3xl font-black text-slate-900 dark:text-white mb-4">{item.t}</h4>
+                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-medium mb-12 text-lg">{item.d}</p>
+                  <div className="pt-8 border-t border-slate-50 dark:border-white/5">
+                     <span className="text-[11px] font-black text-blue-600 uppercase tracking-[0.2em]">{item.stat}</span>
+                  </div>
+                </div>
+              ))}
+           </div>
+        </div>
+      </section>
+
+      {/* Global Presence Section — Modern Map & Imagery */}
+      <section className="py-40 px-8">
+         <div className="max-w-7xl mx-auto bg-slate-900 rounded-[5rem] overflow-hidden relative group">
+            <img 
+              src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=2000" 
+              alt="Global Office" 
+              className="absolute inset-0 w-full h-full object-cover opacity-20 grayscale group-hover:scale-105 transition-transform duration-1000"
+            />
+            <div className="relative z-10 p-16 md:p-32 text-center space-y-16">
+               <h3 className="text-6xl md:text-9xl font-black text-white leading-none tracking-tighter">حضور عالمي <br/> برؤية وطنية.</h3>
+               <p className="text-slate-400 text-xl md:text-3xl max-w-4xl mx-auto leading-relaxed font-medium">
+                  نحن نربط مشاريعنا بشبكة تضم أكثر من ١٤ دولة، لضمان تبادل الخبرات وفتح آفاق للتوسع الإقليمي والدولي.
+               </p>
+               <div className="flex flex-col sm:flex-row justify-center gap-8">
+                  <button onClick={onStart} className="px-20 py-8 bg-white text-slate-900 text-2xl font-black rounded-[3rem] shadow-3xl hover:scale-105 transition-all active:scale-95">سجل مشروعك الآن</button>
+               </div>
             </div>
          </div>
       </section>
 
-      {/* Unified Luxury Footer */}
-      <Footer 
-        lang={lang}
-        onLanguageChange={onLanguageChange}
-        onIncubation={onIncubation}
-        onPartnerConcept={onPartnerConcept}
-        onMentorship={onMentorship}
-        onTools={onTools}
-        onRoadmap={onRoadmap}
-        onAIMentorConcept={onAIMentorConcept}
-        onLogin={onLogin || (() => {})}
-        onStart={onStart}
-      />
+      <footer className="py-24 border-t border-slate-100 dark:border-white/5 text-center">
+         <div className="flex justify-center gap-12 mb-12 opacity-30 grayscale hover:grayscale-0 transition-all">
+            {/* Mock Ecosystem Partners Logos */}
+            <span className="text-xl font-black tracking-widest uppercase">MISA</span>
+            <span className="text-xl font-black tracking-widest uppercase">VISION 2030</span>
+            <span className="text-xl font-black tracking-widest uppercase">GEMINI</span>
+            <span className="text-xl font-black tracking-widest uppercase">GOV HUB</span>
+         </div>
+         <p className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.6em]">Business Developers Hub • 2024</p>
+      </footer>
     </div>
   );
 };
