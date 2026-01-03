@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { UserProfile, UserRole } from '../types';
-import { playPositiveSound, playErrorSound } from '../services/audioService';
+import { playPositiveSound, playErrorSound, playCelebrationSound } from '../services/audioService';
 import { Language, getTranslation } from '../services/i18nService';
 
 interface LoginProps {
@@ -20,12 +20,41 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack, lang }) =>
   
   const t = getTranslation(lang);
 
+  useEffect(() => {
+    storageService.seedDemoAccounts();
+  }, []);
+
   const rolesMeta = [
-    { id: 'STARTUP', label: t.roles.startup, icon: '🚀', desc: t.roles.desc_startup, color: 'blue' },
-    { id: 'PARTNER', label: t.roles.partner, icon: '🤝', desc: t.roles.desc_partner, color: 'emerald' },
-    { id: 'MENTOR', label: t.roles.mentor, icon: '🧠', desc: t.roles.desc_mentor, color: 'purple' },
-    { id: 'ADMIN', label: t.roles.admin, icon: '👑', desc: t.roles.desc_admin, color: 'slate' },
+    { id: 'STARTUP', label: t.roles.startup, icon: '🚀', desc: t.roles.desc_startup, color: 'blue', demo: 'startup@demo.com' },
+    { id: 'PARTNER', label: t.roles.partner, icon: '🤝', desc: t.roles.desc_partner, color: 'emerald', demo: 'partner@demo.com' },
+    { id: 'MENTOR', label: t.roles.mentor, icon: '🧠', desc: t.roles.desc_mentor, color: 'purple', demo: 'mentor@demo.com' },
+    { id: 'ADMIN', label: t.roles.admin, icon: '👑', desc: t.roles.desc_admin, color: 'slate', demo: 'admin@demo.com' },
   ];
+
+  const handleDemoLogin = (roleId: string, demoEmail: string) => {
+    setIsLoading(true);
+    setSelectedRole(roleId as UserRole);
+    setTimeout(() => {
+      const result = storageService.loginUser(demoEmail);
+      if (result) {
+        onLoginSuccess({
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          email: result.user.email,
+          phone: result.user.phone,
+          uid: result.user.uid,
+          role: result.user.role,
+          startupName: result.startup?.name || '',
+          startupId: result.startup?.projectId,
+          name: `${result.user.firstName} ${result.user.lastName}`,
+          agreedToTerms: true,
+          agreedToContract: true
+        });
+        playCelebrationSound();
+      }
+      setIsLoading(false);
+    }, 800);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +87,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack, lang }) =>
           startupName: result.startup?.name || '',
           startupId: result.startup?.projectId,
           name: `${result.user.firstName} ${result.user.lastName}`,
+          agreedToTerms: true,
+          agreedToContract: true
         };
         
         playPositiveSound();
@@ -75,8 +106,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack, lang }) =>
       <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 flex-col justify-center p-20 border-l border-white/5 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.1),transparent_50%)] opacity-50"></div>
         <div className="relative z-10 space-y-12">
-          <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center border border-white/20 shadow-2xl animate-float">
-             <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center border border-white/20 shadow-2xl">
+             <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
           </div>
           <div className="space-y-6">
             <h1 className="text-7xl font-black leading-tight tracking-tighter">{t.brand.split(' ')[0]} <br/><span className="text-blue-500">{t.brand.split(' ')[1] || 'Portal'}</span></h1>
@@ -160,6 +191,24 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess, onBack, lang }) =>
                   </>
                 )}
               </button>
+
+              <div className="pt-6 border-t border-white/5 space-y-6">
+                <div className="text-center">
+                  <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest px-4 bg-slate-950 -mt-10 relative z-10">أو دخول سريع للمعاينة (Demo)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                   {rolesMeta.map(role => (
+                     <button 
+                       key={role.id + '_demo'}
+                       type="button" 
+                       onClick={() => handleDemoLogin(role.id, role.demo)}
+                       className="p-3 bg-white/5 border border-white/5 hover:border-blue-500/30 rounded-xl text-[9px] font-black uppercase text-slate-400 hover:text-blue-400 transition-all flex items-center justify-center gap-2"
+                     >
+                       {role.icon} {role.label}
+                     </button>
+                   ))}
+                </div>
+              </div>
 
               <button type="button" onClick={onBack} className="w-full text-center text-[10px] font-black text-slate-600 hover:text-slate-400 uppercase tracking-[0.2em] mt-4">{t.common.back}</button>
            </form>

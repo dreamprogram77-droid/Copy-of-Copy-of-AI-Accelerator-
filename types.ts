@@ -33,7 +33,6 @@ export interface UserProfile {
   hasMVP?: boolean;
   mvpLink?: string;
   founderCount?: number;
-  // Fix: Added founderBio to UserProfile for storageService.ts
   founderBio?: string;
   hasPartners?: boolean;
   existingRoles?: string[];
@@ -96,9 +95,24 @@ export const TEMPLATES_LIBRARY: Template[] = [
 ];
 
 export interface TaskRecord { id: string; levelId: number; uid: string; title: string; description: string; status: 'LOCKED' | 'ASSIGNED' | 'SUBMITTED' | 'APPROVED'; submission?: { fileData: string; fileName: string; submittedAt: string; }; aiReview?: any; }
-export enum FiltrationStage { LANDING = 'LANDING', AI_MENTOR_CONCEPT = 'AI_MENTOR_CONCEPT', PARTNER_CONCEPT = 'PARTNER_CONCEPT', WELCOME = 'WELCOME', PATH_FINDER = 'PATH_FINDER', ROADMAP = 'ROADMAP', TOOLS = 'TOOLS', ACHIEVEMENTS = 'ACHIEVEMENTS', MENTORSHIP = 'MENTORSHIP', INCUBATION_PROGRAM = 'INCUBATION_PROGRAM', MEMBERSHIPS = 'MEMBERSHIPS', LOGIN = 'LOGIN', DASHBOARD = 'DASHBOARD', STAFF_PORTAL = 'STAFF_PORTAL' }
+export enum FiltrationStage { 
+  LANDING = 'LANDING', 
+  AI_MENTOR_CONCEPT = 'AI_MENTOR_CONCEPT', 
+  PARTNER_CONCEPT = 'PARTNER_CONCEPT', 
+  WELCOME = 'WELCOME', 
+  PATH_FINDER = 'PATH_FINDER', 
+  ROADMAP = 'ROADMAP', 
+  TOOLS = 'TOOLS', 
+  ACHIEVEMENTS = 'ACHIEVEMENTS', 
+  MENTORSHIP = 'MENTORSHIP', 
+  INCUBATION_PROGRAM = 'INCUBATION_PROGRAM', 
+  MEMBERSHIPS = 'MEMBERSHIPS', 
+  LOGIN = 'LOGIN', 
+  DASHBOARD = 'DASHBOARD', 
+  STAFF_PORTAL = 'STAFF_PORTAL',
+  FOREIGN_INVESTMENT = 'FOREIGN_INVESTMENT' 
+}
 
-// Fix: Added missing types used in filtration and evaluation flows
 export interface ApplicantProfile {
   codeName: string;
   projectStage: ProjectStageType;

@@ -1,5 +1,5 @@
 
-import { UserRecord, StartupRecord, UserProfile, TaskRecord, TASKS_CONFIG, PartnerProfile, PartnerMatchRequest, MatchScore, ServiceRequest } from '../types';
+import { UserRecord, StartupRecord, UserProfile, TaskRecord, TASKS_CONFIG, PartnerProfile, PartnerMatchRequest, MatchScore, ServiceRequest, UserRole } from '../types';
 
 const DB_KEYS = {
   USERS: 'db_users',
@@ -50,9 +50,7 @@ export const storageService = {
     const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
     localStorage.setItem(DB_KEYS.USERS, JSON.stringify([...users, newUser]));
     
-    // Save detailed profile separately to preserve all the new fields
     localStorage.setItem(`profile_${uid}`, JSON.stringify(profile));
-    
     localStorage.setItem(DB_KEYS.SESSION, JSON.stringify({ uid, projectId: newStartup?.projectId }));
 
     const tasks = TASKS_CONFIG.map(t => ({ ...t, uid, status: t.levelId === 1 ? 'ASSIGNED' : 'LOCKED' as any }));
@@ -62,7 +60,6 @@ export const storageService = {
     return { user: newUser, startup: newStartup };
   },
 
-  // ... (keeping other methods same for now)
   registerAsPartner: (data: PartnerProfile) => {
     const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
     const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
@@ -94,6 +91,7 @@ export const storageService = {
   },
 
   getAllPartners: (): PartnerProfile[] => JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]'),
+  
   getPartnerProfile: (uid: string): PartnerProfile | null => {
     const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
     return partners.find((p: any) => p.uid === uid) || null;
@@ -153,21 +151,50 @@ export const storageService = {
     localStorage.setItem(DB_KEYS.SERVICE_REQUESTS, JSON.stringify([...requests, newRequest]));
   },
 
-  seedDemoAccount: (): string => {
-    const demoEmail = 'admin@bizdev.ai';
+  seedDemoAccounts: () => {
     const users = JSON.parse(localStorage.getItem(DB_KEYS.USERS) || '[]');
-    if (users.find((u: any) => u.email === demoEmail)) return demoEmail;
-    
-    const admin: UserRecord = {
-      uid: 'u_admin',
-      firstName: 'مدير',
-      lastName: 'الحاضنة',
-      email: demoEmail,
-      role: 'ADMIN',
-      phone: '0500000000'
-    };
-    
-    localStorage.setItem(DB_KEYS.USERS, JSON.stringify([...users, admin]));
-    return demoEmail;
+    const startups = JSON.parse(localStorage.getItem(DB_KEYS.STARTUPS) || '[]');
+    const partners = JSON.parse(localStorage.getItem(DB_KEYS.PARTNERS) || '[]');
+
+    const demoUsers: {email: string, role: UserRole, f: string, l: string, uid: string}[] = [
+      { email: 'admin@demo.com', role: 'ADMIN', f: 'مدير', l: 'النظام', uid: 'u_demo_admin' },
+      { email: 'startup@demo.com', role: 'STARTUP', f: 'فيصل', l: 'المؤسس', uid: 'u_demo_startup' },
+      { email: 'partner@demo.com', role: 'PARTNER', f: 'سارة', l: 'التقنية', uid: 'u_demo_partner' },
+      { email: 'mentor@demo.com', role: 'MENTOR', f: 'د. خالد', l: 'العمري', uid: 'u_demo_mentor' },
+    ];
+
+    demoUsers.forEach(d => {
+      if (!users.find((u: any) => u.email === d.email)) {
+        const newUser: UserRecord = { uid: d.uid, firstName: d.f, lastName: d.l, email: d.email, role: d.role, phone: '0500000000' };
+        users.push(newUser);
+
+        if (d.role === 'STARTUP') {
+          const newStartup: StartupRecord = {
+            projectId: 'p_demo', ownerId: d.uid, ownerName: `${d.f} ${d.l}`,
+            name: 'تيك-لوجيك (Demo)', description: 'منصة ذكية لإدارة الخدمات اللوجستية.',
+            industry: 'Technology', currentTrack: 'MVP', status: 'APPROVED',
+            metrics: { readiness: 65, tech: 80, market: 55 },
+            aiOpinion: 'مشروع واعد مع عمق تقني واضح.', lastActivity: new Date().toISOString(),
+            partners: []
+          };
+          startups.push(newStartup);
+        }
+
+        if (d.role === 'PARTNER') {
+          const newPartner: PartnerProfile = {
+            uid: d.uid, name: `${d.f} ${d.l}`, email: d.email, primaryRole: 'CTO',
+            experienceYears: 12, bio: 'خبير في بناء الأنظمة الموزعة والذكاء الاصطناعي.',
+            linkedin: 'https://linkedin.com/demo', skills: ['React', 'Node.js', 'Python'],
+            availabilityHours: 25, commitmentType: 'Part-time', city: 'دبي', isRemote: true,
+            workStyle: 'Fast', goals: 'Long-term', isVerified: true, profileCompletion: 100
+          };
+          partners.push(newPartner);
+        }
+      }
+    });
+
+    localStorage.setItem(DB_KEYS.USERS, JSON.stringify(users));
+    localStorage.setItem(DB_KEYS.STARTUPS, JSON.stringify(startups));
+    localStorage.setItem(DB_KEYS.PARTNERS, JSON.stringify(partners));
   }
 };

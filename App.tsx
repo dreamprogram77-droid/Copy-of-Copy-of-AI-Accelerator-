@@ -17,6 +17,8 @@ import { IncubationProgram } from './components/IncubationProgram';
 import { MembershipsPage } from './components/MembershipsPage';
 import { PartnerConceptPage } from './components/PartnerConceptPage';
 import { AIMentorConceptPage } from './components/AIMentorConceptPage';
+import { CoFounderPortal } from './components/CoFounderPortal';
+import { ForeignInvestmentPage } from './components/ForeignInvestmentPage';
 
 function App() {
   const [stage, setStage] = useState<FiltrationStage>(FiltrationStage.LANDING);
@@ -102,8 +104,16 @@ function App() {
           onMemberships={() => setStage(FiltrationStage.MEMBERSHIPS)}
           onPartnerConcept={() => setStage(FiltrationStage.PARTNER_CONCEPT)}
           onAIMentorConcept={() => setStage(FiltrationStage.AI_MENTOR_CONCEPT)}
+          onForeignInvestment={() => setStage(FiltrationStage.FOREIGN_INVESTMENT)}
           lang={currentLang}
           onLanguageChange={setCurrentLang}
+        />
+      )}
+
+      {stage === FiltrationStage.FOREIGN_INVESTMENT && (
+        <ForeignInvestmentPage 
+          onBack={() => setStage(FiltrationStage.LANDING)} 
+          onApply={() => startRegistration('STARTUP')} 
         />
       )}
 
@@ -147,12 +157,16 @@ function App() {
       {stage === FiltrationStage.MEMBERSHIPS && <MembershipsPage onBack={() => setStage(FiltrationStage.LANDING)} onSelect={() => startRegistration('STARTUP')} />}
 
       {stage === FiltrationStage.DASHBOARD && currentUser && (
-        <DashboardHub 
-          lang={currentLang}
-          user={currentUser} 
-          onLogout={() => { localStorage.removeItem('db_current_session'); setCurrentUser(null); setStage(FiltrationStage.LANDING); }} 
-          onNavigateToStage={setStage} 
-        />
+        currentUser.role === 'PARTNER' ? (
+          <CoFounderPortal user={currentUser} onBack={() => { localStorage.removeItem('db_current_session'); setCurrentUser(null); setStage(FiltrationStage.LANDING); }} />
+        ) : (
+          <DashboardHub 
+            lang={currentLang}
+            user={currentUser} 
+            onLogout={() => { localStorage.removeItem('db_current_session'); setCurrentUser(null); setStage(FiltrationStage.LANDING); }} 
+            onNavigateToStage={setStage} 
+          />
+        )
       )}
       
       <LegalPortal type={activeLegal} onClose={() => setActiveLegal(null)} />

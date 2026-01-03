@@ -17,6 +17,7 @@ interface LandingPageProps {
   onMemberships: () => void;
   onPartnerConcept: () => void;
   onAIMentorConcept: () => void;
+  onForeignInvestment: () => void; // New prop
   onLegalClick: (type: 'PRIVACY' | 'TERMS' | 'CONTACT') => void;
   onLogin?: () => void;
   lang: Language;
@@ -26,7 +27,7 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ 
   onStart, onPathFinder, onRoadmap, onTools, onAchievements, 
   onMentorship, onIncubation, onMemberships, onLegalClick, onLogin,
-  onPartnerConcept, onAIMentorConcept,
+  onPartnerConcept, onAIMentorConcept, onForeignInvestment,
   lang, onLanguageChange
 }) => {
   const [scrolled, setScrolled] = useState(false);
@@ -81,6 +82,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <button onClick={onIncubation} className="px-4 py-2 rounded-xl text-[10px] font-black text-slate-500 hover:text-primary transition-all">شركة محتضنة</button>
                 <button onClick={onPartnerConcept} className="px-4 py-2 rounded-xl text-[10px] font-black text-slate-500 hover:text-emerald-500 transition-all">شريك</button>
                 <button onClick={onMentorship} className="px-4 py-2 rounded-xl text-[10px] font-black text-slate-500 hover:text-purple-500 transition-all">مرشد</button>
+                <button onClick={onForeignInvestment} className="px-4 py-2 rounded-xl text-[10px] font-black text-blue-600 hover:bg-blue-50 transition-all">الاستثمار الأجنبي</button>
             </div>
 
             <div className="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
@@ -114,7 +116,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="lg:hidden glass border-t border-black/5 dark:border-white/5 p-6 space-y-6 animate-fade-up">
             <div className="grid grid-cols-2 gap-3">
               <button onClick={onIncubation} className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl text-[10px] font-black text-center">المحتضنين</button>
-              <button onClick={onPartnerConcept} className="p-4 bg-slate-100 dark:bg-white/5 rounded-2xl text-[10px] font-black text-center">الشركاء</button>
+              <button onClick={onForeignInvestment} className="p-4 bg-blue-50 rounded-2xl text-[10px] font-black text-center text-blue-600">الاستثمار الأجنبي</button>
             </div>
             <div className="space-y-4">
               <button onClick={onTools} className="block w-full text-right text-sm font-black p-2">{t.nav.tools}</button>
@@ -198,7 +200,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                {[
                  { title: 'شركة محتضنة', desc: 'ابدأ رحلة نضج مشروعك من الفكرة إلى الاستثمار تحت إشراف نخبة من الموجهين.', icon: '🚀', color: 'blue', action: onIncubation },
                  { title: 'شريك مؤسس', desc: 'استثمر خبراتك في مشاريع ناشئة واعدة مقابل حصص ملكية استراتيجية.', icon: '🤝', color: 'emerald', action: onPartnerConcept },
-                 { title: 'مرشد خبير', desc: 'كن جزءاً من قصة نجاح المبتكرين الجدد وشارك خبراتك مع مجتمعنا المتنامي.', icon: '🧠', color: 'purple', action: onMentorship }
+                 { title: 'استثمار أجنبي', desc: 'احصل على رخصة MISA وبرنامج الإقامة المميزة لتأسيس مشروعك العالمي في المملكة.', icon: '🇸🇦', color: 'purple', action: onForeignInvestment }
                ].map((item, i) => (
                  <div key={i} onClick={item.action} className="card-premium p-10 cursor-pointer group flex flex-col">
                     <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-4xl mb-8 transition-transform group-hover:scale-110 group-hover:rotate-6 ${isDark ? 'bg-white/5 shadow-inner' : 'bg-slate-50'}`}>
