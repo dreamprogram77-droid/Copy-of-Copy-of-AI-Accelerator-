@@ -119,7 +119,7 @@ export const MembershipsPage: React.FC<MembershipsPageProps> = ({ onBack, onSele
             <h1 className="text-xl font-black text-slate-900 hidden sm:block">باقات بيزنس ديفلوبرز</h1>
           </div>
           <div className="flex gap-2">
-             <span className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">Membership v2.0</span>
+             <span className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-100">Membership v2.5</span>
           </div>
         </div>
       </header>
@@ -190,7 +190,7 @@ export const MembershipsPage: React.FC<MembershipsPageProps> = ({ onBack, onSele
         {/* Detailed Decision Table */}
         <section className="space-y-12 animate-fade-in pt-10">
            <div className="text-center space-y-2">
-              <h3 className="text-3xl font-black text-slate-900">جدول مقارنة العضويات</h3>
+              <h3 className="text-3xl font-black text-slate-900">جدول مقارنة العضويات الاستراتيجي</h3>
               <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Strategic Comparison Matrix</p>
            </div>
            
@@ -198,11 +198,11 @@ export const MembershipsPage: React.FC<MembershipsPageProps> = ({ onBack, onSele
               <table className="w-full text-right border-collapse">
                  <thead>
                     <tr className="bg-slate-900 text-white">
-                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest border-l border-slate-800">الميزة / الباقة</th>
-                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest border-l border-slate-800">Business Community</th>
-                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest border-l border-slate-800">Execution</th>
-                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest border-l border-slate-800">Partnerships</th>
-                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest">Growth Opportunities</th>
+                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest border-l border-slate-800 text-right">الميزة / الباقة</th>
+                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest border-l border-slate-800 text-right">Business Community</th>
+                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest border-l border-slate-800 text-right">Execution</th>
+                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest border-l border-slate-800 text-right">Partnerships</th>
+                       <th className="px-8 py-6 font-black text-sm uppercase tracking-widest text-right">Growth Opportunities</th>
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100 font-bold text-sm">

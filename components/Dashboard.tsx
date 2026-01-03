@@ -5,10 +5,6 @@ import { storageService } from '../services/storageService';
 import { discoverOpportunities } from '../services/geminiService';
 import { playPositiveSound, playCelebrationSound } from '../services/audioService';
 import { ProgramEvaluation } from './ProgramEvaluation';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Radar, RadarChart, PolarGrid, PolarAngleAxis
-} from 'recharts';
 
 interface DashboardProps {
   user: UserProfile;
@@ -22,12 +18,11 @@ interface DashboardProps {
 
 const NAV_ITEMS = [
   { id: 'home', label: 'الرئيسية', icon: '🏠' },
-  { id: 'calendar', label: 'التقويم', icon: '📅' },
-  { id: 'startup_profile', label: 'الملف الشخصي', icon: '📈' },
   { id: 'bootcamp', label: 'المنهج التدريبي', icon: '📚' },
   { id: 'tasks', label: 'المهام والتسليمات', icon: '📝' },
   { id: 'opportunity_lab', label: 'مختبر الفرص', icon: '🧭' },
   { id: 'services', label: 'خدمات التنفيذ', icon: '🛠️' }, 
+  { id: 'startup_profile', label: 'الملف الشخصي', icon: '📈' },
 ];
 
 const PRESET_COLORS = [
@@ -226,6 +221,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
         .timeline-bar { position: relative; }
         .timeline-bar::after { content: ''; position: absolute; top: 18px; left: 0; right: 0; height: 3px; background: ${isDark ? '#1e293b' : '#e2e8f0'}; z-index: 0; border-radius: 10px; }
         .timeline-fill { position: absolute; top: 18px; right: 0; height: 3px; background: #3b82f6; z-index: 1; transition: width 1s ease-in-out; border-radius: 10px; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.2); border-radius: 10px; }
       `}</style>
 
       {/* Modern Sidebar */}
@@ -239,7 +236,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
           </div>
           <div>
             <h2 className={`font-black text-lg truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{userProfile.startupName}</h2>
-            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1">Founding Member</p>
+            <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1">Virtual Startup Core</p>
           </div>
         </div>
 
@@ -254,22 +251,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                 <span className={`text-xl transition-transform group-hover:scale-110 ${activeNav === item.id ? '' : 'grayscale opacity-60'}`}>{item.icon}</span>
                 <span>{item.label}</span>
               </div>
-              {item.id === 'services' && userRequests.length > 0 && (
-                <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-sm">
-                  {userRequests.length}
-                </span>
-              )}
             </button>
           ))}
         </nav>
 
         <div className="p-8 border-t border-white/5 space-y-3">
-          {progress === 100 && (
-            <button onClick={() => setShowRatingModal(true)} className="w-full p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-amber-500 hover:text-white transition-all">
-              <span>⭐</span>
-              <span>{hasRated ? 'تعديل التقييم' : 'تقييم التجربة'}</span>
-            </button>
-          )}
           <button onClick={() => { const n = isDark ? 'light' : 'dark'; setThemeMode(n); localStorage.setItem('dashboard_theme_mode', n); }} className={`w-full p-4 rounded-2xl border ${isDark ? 'border-white/5 bg-white/5 text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-600'} text-[11px] font-black uppercase tracking-widest transition-all hover:border-blue-500`}>
              {isDark ? '☀️ الوضع النهاري' : '🌙 الوضع الليلي'}
           </button>
@@ -277,7 +263,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
         </div>
       </aside>
 
-      {/* Main Workspace */}
+      {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-24 dashboard-header flex items-center justify-between px-10 border-b border-white/5 z-40">
            <div className="flex items-center gap-6">
@@ -291,25 +277,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                 onClick={() => { setIsCustomizeMode(!isCustomizeMode); playPositiveSound(); }}
                 className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${isCustomizeMode ? 'bg-amber-100 border-amber-400 text-amber-700' : `${isDark ? 'bg-white/5 border-white/10 text-slate-400 hover:border-blue-500' : 'bg-white border-slate-200 text-slate-500 hover:border-blue-500'}`}`}
               >
-                {isCustomizeMode ? '✨ جاري التخصيص...' : '🎨 تخصيص المظهر'}
+                {isCustomizeMode ? '✨ جاري التخصيص...' : '🎨 تخصيص المسار'}
               </button>
               <button onClick={onOpenProAnalytics} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/20 active:scale-95 transition-all">تحليلات PRO</button>
            </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-10 custom-scrollbar relative">
-           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-600/20 to-transparent"></div>
-
            {activeNav === 'home' && (
              <div className="max-w-6xl mx-auto space-y-12 animate-fade-in pb-20">
-                {/* Scorecards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                   <div className="p-8 bg-blue-600 rounded-[2.5rem] text-white shadow-3xl shadow-blue-600/20 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-[40px] group-hover:scale-150 transition-transform duration-1000"></div>
-                      <div className="relative z-10">
-                        <p className="text-[11px] font-black uppercase tracking-widest opacity-60 mb-2">إنجاز المسار التدريبي</p>
-                        <h3 className="text-5xl font-black tracking-tighter">{Math.round(progress)}%</h3>
-                      </div>
+                   <div className="p-8 bg-blue-600 rounded-[2.5rem] text-white shadow-3xl relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-[40px]"></div>
+                      <p className="text-[11px] font-black uppercase opacity-60 mb-2">إنجاز المسار التدريبي</p>
+                      <h3 className="text-5xl font-black tracking-tighter">{Math.round(progress)}%</h3>
                       <div className="mt-8 bg-white/20 h-2 rounded-full overflow-hidden">
                         <div className="bg-white h-full transition-all duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
                       </div>
@@ -324,7 +305,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                    </div>
                 </div>
 
-                {/* Timeline Visualization */}
                 <div className="space-y-6">
                    <div className="flex items-center gap-4 px-2">
                       <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
@@ -342,7 +322,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                                       className={`w-12 h-12 rounded-full flex items-center justify-center text-xs border-4 transition-all duration-700
                                         ${level.isCompleted 
                                           ? `${colorSet.bg} border-white text-white shadow-xl scale-110` 
-                                          : level.isLocked ? `${isDark ? 'bg-slate-800 border-slate-900 text-slate-600' : 'bg-slate-100 border-white text-slate-300'}` : `bg-white ${colorSet.border} ${colorSet.text} animate-pulse scale-125 shadow-lg shadow-blue-500/20`)
+                                          /* Fixed the unmatched parenthesis error below by removing ')' on line 241 */
+                                          : level.isLocked ? `${isDark ? 'bg-slate-800 border-slate-900 text-slate-600' : 'bg-slate-100 border-white text-slate-300'}` : `bg-white ${colorSet.border} ${colorSet.text} animate-pulse scale-125 shadow-lg shadow-blue-500/20`
                                         }
                                       `}
                                    >
@@ -361,13 +342,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
                    </div>
                 </div>
 
-                {/* Bootcamp List */}
                 <div className="space-y-6">
                    <div className="flex justify-between items-center px-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
-                        <h3 className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>المنهج التدريبي التفاعلي</h3>
-                      </div>
+                      <h3 className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>المنهج التدريبي التفاعلي</h3>
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{completedCount} من {levels.length} مكتمل</span>
                    </div>
                    
@@ -428,64 +405,165 @@ export const Dashboard: React.FC<DashboardProps> = ({ user: initialUser, levels,
              </div>
            )}
 
-           {/* Other tabs logic remains robust... (omitted for brevity while keeping structure intact) */}
+           {activeNav === 'tasks' && (
+             <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   {userTasks.map(task => (
+                     <div key={task.id} className={`p-8 rounded-[2.5rem] card-pro ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white'} ${task.status === 'LOCKED' ? 'opacity-40 grayscale' : ''}`}>
+                        <div className="flex justify-between items-center mb-6">
+                           <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest">Level 0{task.levelId}</span>
+                           <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${task.status === 'ASSIGNED' ? 'bg-blue-100 text-blue-600' : task.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>{task.status}</span>
+                        </div>
+                        <h4 className="text-xl font-black mb-4">{task.title}</h4>
+                        <p className="text-xs text-slate-500 mb-8">{task.description}</p>
+                        {task.status === 'ASSIGNED' && (
+                           <button 
+                              onClick={() => setSelectedTask(task)} 
+                              className="w-full py-4 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-2xl font-black text-xs hover:brightness-110 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                           >
+                              تسليم المخرج
+                           </button>
+                        )}
+                     </div>
+                   ))}
+                </div>
+             </div>
+           )}
+
+           {activeNav === 'opportunity_lab' && (
+             <div className="max-w-6xl mx-auto space-y-12 animate-fade-in pb-20">
+                <div className="text-center space-y-6">
+                   <h3 className="text-4xl font-black">مختبر الفرص والنمو (AI)</h3>
+                   <p className="text-slate-500 max-w-2xl mx-auto font-medium">استخدم وكلاء Gemini لاكتشاف أسواق جديدة غير مخدومة لمشروعك.</p>
+                </div>
+                {!oppResult && (
+                  <div className="flex flex-col items-center py-20 space-y-8">
+                     <button onClick={handleRunOppAnalysis} disabled={isAnalyzingOpp} className="px-16 py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xl shadow-2xl hover:bg-blue-600 transition-all flex items-center gap-4">
+                        {isAnalyzingOpp ? 'جاري التحليل الاستراتيجي...' : 'تفعيل مسح الفرص الاستراتيجي'}
+                     </button>
+                  </div>
+                )}
+                {oppResult && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in-up">
+                    <div className="lg:col-span-2 space-y-8">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {oppResult.newMarkets.map((m, i) => (
+                            <div key={i} className={`p-8 bg-white rounded-[3rem] border border-slate-100 shadow-xl ${isDark ? 'bg-slate-900 border-slate-800' : ''}`}>
+                               <h5 className="text-xl font-black text-blue-600 mb-4">{m.region}</h5>
+                               <p className="text-sm text-slate-500 font-medium leading-relaxed">{m.reasoning}</p>
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                    <div className="space-y-6">
+                       <div className="p-10 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-[3.5rem] shadow-2xl">
+                          <h4 className="text-lg font-black mb-6">استراتيجية المحيط الأزرق</h4>
+                          <p className="italic font-medium leading-loose opacity-95">"{oppResult.blueOceanIdea}"</p>
+                       </div>
+                    </div>
+                  </div>
+                )}
+             </div>
+           )}
+
+           {activeNav === 'services' && (
+             <div className="max-w-6xl mx-auto space-y-12 animate-fade-in pb-20">
+                <div className="text-center space-y-4">
+                   <h3 className="text-4xl font-black">خدمات التنفيذ المتميزة</h3>
+                   <p className="text-slate-500">فريق متخصص لنمذجة مخرجاتك الريادية بجودة عالمية.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                   {SERVICES_CATALOG.map(svc => (
+                     <div key={svc.id} className={`p-10 rounded-[3rem] card-pro ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
+                        <div className="text-5xl mb-6">{svc.icon}</div>
+                        <h4 className="text-2xl font-black mb-4">{svc.title}</h4>
+                        <p className="text-sm text-slate-500 mb-10 line-clamp-3">{svc.description}</p>
+                        <button onClick={() => setSelectedService(svc)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-blue-600 transition-all">اكتشف الباقات</button>
+                     </div>
+                   ))}
+                </div>
+             </div>
+           )}
+
+           {activeNav === 'startup_profile' && (
+             <div className="max-w-4xl mx-auto space-y-12 animate-fade-in pb-20">
+                <div className={`p-12 rounded-[3.5rem] card-pro ${isDark ? 'bg-slate-900/50' : 'bg-white'} space-y-10`}>
+                   <div className="flex flex-col md:flex-row gap-12 items-center">
+                      <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                         <div className="w-40 h-40 rounded-[3rem] border-4 border-dashed border-slate-200 flex items-center justify-center bg-slate-50 overflow-hidden">
+                           {userProfile.logo ? <img src={userProfile.logo} className="w-full h-full object-cover" alt="logo" /> : <span className="text-5xl">📁</span>}
+                         </div>
+                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                      </div>
+                      <div className="flex-1 space-y-6">
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                               <label className="text-xs font-black text-slate-500 uppercase">اسم المشروع</label>
+                               <input className={`w-full p-4 rounded-xl border outline-none ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50'}`} value={userProfile.startupName} onChange={e => setUserProfile({...userProfile, startupName: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                               <label className="text-xs font-black text-slate-500 uppercase">القطاع</label>
+                               <select className={`w-full p-4 rounded-xl border outline-none ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50'}`} value={userProfile.industry} onChange={e => setUserProfile({...userProfile, industry: e.target.value})}>
+                                  {SECTORS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                               </select>
+                            </div>
+                         </div>
+                         <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase">الوصف الاستراتيجي</label>
+                            <textarea className={`w-full h-32 p-4 rounded-xl border outline-none ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50'} resize-none`} value={userProfile.startupDescription} onChange={e => setUserProfile({...userProfile, startupDescription: e.target.value})} />
+                         </div>
+                         <button onClick={handleSaveProfile} disabled={isSaving} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl hover:bg-blue-700 transition-all">
+                            {isSaving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+                         </button>
+                      </div>
+                   </div>
+                </div>
+             </div>
+           )}
         </div>
-      </main>
 
-      {/* Improved Customization Modal */}
-      {editingLevel && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/95 backdrop-blur-3xl animate-fade-in" dir="rtl">
-           <div className={`max-w-xl w-full p-14 rounded-[4.5rem] border shadow-3xl relative overflow-hidden ${isDark ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-100 text-slate-900'} animate-fade-in-up`}>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600 opacity-5 rounded-bl-full pointer-events-none"></div>
-              
-              <div className="relative z-10 space-y-12">
-                 <div className="text-center space-y-2">
-                    <h3 className="text-3xl font-black tracking-tight">تخصيص: المستوى {editingLevel.id}</h3>
-                    <p className="text-slate-500 text-[11px] font-bold uppercase tracking-widest">{editingLevel.title}</p>
-                 </div>
-                 
-                 <div className="flex flex-col items-center gap-10">
-                    <div className={`w-32 h-32 rounded-[3rem] flex items-center justify-center text-7xl shadow-2xl transition-all duration-500 ${getLevelColorSet(customColorName).bg} text-white`}>
-                       {customIcon || editingLevel.icon}
-                    </div>
-
-                    <div className="w-full space-y-8">
-                       <div className="space-y-4">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pr-4">أيقونة المستوى (Emoji)</label>
-                          <input 
-                             className={`w-full p-6 text-4xl text-center rounded-[2rem] border-2 outline-none focus:border-blue-500 transition-all ${isDark ? 'bg-white/5 border-white/5 text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`}
-                             value={customIcon}
-                             onChange={e => setCustomIcon(e.target.value.substring(0, 4))} 
-                             placeholder="💡"
-                          />
-                       </div>
-
-                       <div className="space-y-4">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pr-4">اللون الاستراتيجي</label>
-                          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
-                             {PRESET_COLORS.map(color => (
-                                <button 
-                                   key={color.name}
-                                   onClick={() => { setCustomColorName(color.name); playPositiveSound(); }}
-                                   className={`w-10 h-10 rounded-2xl transition-all border-4 ${color.bg} ${customColorName === color.name ? 'border-white ring-4 ' + color.ring + ' scale-110' : 'border-transparent opacity-40 hover:opacity-100 hover:scale-105'}`}
-                                   title={color.name}
-                                />
-                             ))}
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-
-                 <div className="flex gap-4 pt-6">
-                    <button onClick={() => setEditingLevel(null)} className="flex-1 py-5 rounded-3xl font-black text-slate-500 hover:text-white transition-colors">إلغاء</button>
-                    <button onClick={handleSaveCustomization} className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-blue-600/20 transform active:scale-95 transition-all">حفظ التغييرات</button>
-                 </div>
+        {/* Modals placed correctly inside main container div but outside content scrolling area */}
+        {editingLevel && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-fade-in" dir="rtl">
+            <div className={`max-w-xl w-full p-12 rounded-[4rem] border shadow-3xl ${isDark ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-100 text-slate-900'}`}>
+              <h3 className="text-3xl font-black mb-10 text-center">تخصيص: المستوى {editingLevel.id}</h3>
+              <div className="flex flex-col items-center gap-12">
+                <div className={`w-32 h-32 rounded-[3rem] flex items-center justify-center text-7xl shadow-2xl transition-all duration-500 ${getLevelColorSet(customColorName).bg} text-white`}>
+                  {customIcon || editingLevel.icon}
+                </div>
+                <div className="w-full space-y-8">
+                  <input className={`w-full p-6 text-4xl text-center rounded-[2rem] border-2 outline-none ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`} value={customIcon} onChange={e => setCustomIcon(e.target.value.substring(0,4))} placeholder="الأيقونة" />
+                  <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+                    {PRESET_COLORS.map(color => (
+                      <button key={color.name} onClick={() => setCustomColorName(color.name)} className={`w-10 h-10 rounded-xl ${color.bg} border-4 ${customColorName === color.name ? 'border-white ring-4 ' + color.ring : 'border-transparent opacity-40 hover:opacity-100 transition-all'}`} />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-4 w-full pt-6">
+                  <button onClick={() => setEditingLevel(null)} className="flex-1 py-5 rounded-3xl font-black text-slate-500 hover:text-slate-700 transition-colors">إلغاء</button>
+                  <button onClick={handleSaveCustomization} className="flex-[2] py-5 bg-blue-600 text-white rounded-[2rem] font-black shadow-xl active:scale-95 transition-all">حفظ التفضيلات</button>
+                </div>
               </div>
-           </div>
-        </div>
-      )}
+            </div>
+          </div>
+        )}
 
-      {/* Remaining modals keep the same logic with refined styles... */}
+        {selectedTask && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md" dir="rtl">
+            <div className={`max-w-xl w-full p-10 rounded-[3rem] ${isDark ? 'bg-slate-900 border border-white/5 text-white' : 'bg-white shadow-2xl text-slate-900'} text-right animate-fade-in-up`}>
+              <h3 className="text-2xl font-black mb-4">تسليم: {selectedTask.title}</h3>
+              <p className="text-slate-500 text-sm mb-8 leading-relaxed">{selectedTask.description}</p>
+              <textarea className={`w-full h-64 p-6 rounded-3xl border outline-none focus:border-blue-500 mb-8 font-medium ${isDark ? 'bg-white/5 border-white/5 focus:bg-slate-800' : 'bg-slate-50 border-slate-200 focus:bg-white'} transition-all resize-none shadow-inner`} placeholder="الصق الرابط أو التفاصيل هنا..." value={submissionText} onChange={e => setSubmissionText(e.target.value)} />
+              <div className="flex gap-4">
+                <button onClick={() => setSelectedTask(null)} className="flex-1 py-4 font-black text-slate-400 hover:text-slate-600 transition-colors">إلغاء</button>
+                <button onClick={handleTaskSubmit} disabled={!submissionText.trim()} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl disabled:opacity-30 active:scale-95 transition-all">تأكيد التسليم</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRatingModal && <ProgramEvaluation onClose={() => setShowRatingModal(false)} onSubmit={handleRatingSubmit} />}
+      </main>
     </div>
   );
 };
