@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiltrationStage, UserProfile, UserRole, StartupRecord } from './types';
+import { FiltrationStage, UserProfile, UserRole } from './types';
 import { storageService } from './services/storageService';
 import { Language, getTranslation } from './services/i18nService';
 import { Registration } from './components/Registration';
@@ -74,7 +74,6 @@ function App() {
   };
 
   const handleRegister = (profile: UserProfile) => {
-    // In a real app, you'd pass registrationRole to storageService.registerUser
     storageService.registerUser({ ...profile }); 
     hydrateSession();
     setStage(FiltrationStage.DASHBOARD);
@@ -109,17 +108,30 @@ function App() {
       )}
 
       {stage === FiltrationStage.PARTNER_CONCEPT && (
-        <PartnerConceptPage onRegister={() => startRegistration('PARTNER')} onBack={() => setStage(FiltrationStage.LANDING)} />
+        <PartnerConceptPage 
+          onRegister={() => startRegistration('PARTNER')} 
+          onBack={() => setStage(FiltrationStage.LANDING)} 
+        />
       )}
 
       {stage === FiltrationStage.AI_MENTOR_CONCEPT && (
-        <AIMentorConceptPage onStart={() => setStage(FiltrationStage.PATH_FINDER)} onBack={() => setStage(FiltrationStage.LANDING)} />
+        <AIMentorConceptPage 
+          onStart={() => setStage(FiltrationStage.PATH_FINDER)} 
+          onBack={() => setStage(FiltrationStage.LANDING)} 
+        />
       )}
 
-      {stage === FiltrationStage.LOGIN && <Login onLoginSuccess={handleLoginSuccess} onBack={() => setStage(FiltrationStage.LANDING)} />}
+      {stage === FiltrationStage.LOGIN && (
+        <Login 
+          lang={currentLang} 
+          onLoginSuccess={handleLoginSuccess} 
+          onBack={() => setStage(FiltrationStage.LANDING)} 
+        />
+      )}
       
       {stage === FiltrationStage.WELCOME && (
         <Registration 
+          lang={currentLang}
           role={registrationRole}
           onRegister={handleRegister} 
           onStaffLogin={() => setStage(FiltrationStage.STAFF_PORTAL)} 
@@ -136,6 +148,7 @@ function App() {
 
       {stage === FiltrationStage.DASHBOARD && currentUser && (
         <DashboardHub 
+          lang={currentLang}
           user={currentUser} 
           onLogout={() => { localStorage.removeItem('db_current_session'); setCurrentUser(null); setStage(FiltrationStage.LANDING); }} 
           onNavigateToStage={setStage} 

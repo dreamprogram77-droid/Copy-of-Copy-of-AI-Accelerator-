@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Language, getTranslation } from '../services/i18nService';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { Footer } from './Footer';
 
 interface LandingPageProps {
   onStart: () => void;
@@ -79,7 +80,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
           
           <div className="hidden lg:flex gap-8 items-center">
-            {/* Roles Navigation */}
             <div className="flex items-center gap-6 bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-black/5 dark:border-white/5">
                 <button onClick={onIncubation} className="role-pill text-slate-500 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800">شركة محتضنة</button>
                 <button onClick={onPartnerConcept} className="role-pill text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10">شريك</button>
@@ -206,6 +206,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
          </div>
       </section>
+
+      {/* Unified Luxury Footer */}
+      <Footer 
+        lang={lang}
+        onLanguageChange={onLanguageChange}
+        onIncubation={onIncubation}
+        onPartnerConcept={onPartnerConcept}
+        onMentorship={onMentorship}
+        onTools={onTools}
+        onRoadmap={onRoadmap}
+        onAIMentorConcept={onAIMentorConcept}
+        onLogin={onLogin || (() => {})}
+        onStart={onStart}
+      />
     </div>
   );
 };
