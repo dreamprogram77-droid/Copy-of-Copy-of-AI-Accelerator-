@@ -1,6 +1,17 @@
 
 export type UserRole = 'STARTUP' | 'PARTNER' | 'MENTOR' | 'ADMIN';
 
+export interface UserRecord {
+  uid: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  earnedBadges?: string[];
+  founderBio?: string;
+}
+
 export interface Badge {
   id: string;
   name: string;
@@ -18,6 +29,8 @@ export const ACADEMY_BADGES: Badge[] = [
   { id: 'b5', levelId: 5, name: 'خبير مالي', icon: '💎', description: 'بناء النماذج المالية وتوقعات التدفقات النقدية.', color: 'from-indigo-400 to-indigo-600' },
   { id: 'b6', levelId: 6, name: 'رائد أعمال متمرس', icon: '👑', description: 'الجاهزية التامة لعرض المشروع على المستثمرين.', color: 'from-slate-700 to-slate-900' }
 ];
+
+export const DIGITAL_SHIELDS = ACADEMY_BADGES;
 
 export interface Partner {
   name: string;
@@ -60,6 +73,29 @@ export interface UserProfile {
   skills?: string[];
 }
 
+export type ApplicationStatus = 'PENDING_SCREENING' | 'NEEDS_COMPLETION' | 'REVIEW_REQUIRED' | 'APPROVED' | 'REJECTED';
+
+export interface StartupRecord {
+  projectId: string;
+  ownerId: string;
+  ownerName: string;
+  name: string;
+  description: string;
+  industry: string;
+  status: 'PENDING' | 'APPROVED' | 'STALLED';
+  applicationStatus: ApplicationStatus;
+  fitScore?: number;
+  aiFeedback?: string;
+  metrics: { readiness: number; tech: number; market: number };
+  aiOpinion: string;
+  lastActivity: string;
+  partners: Partner[];
+  startupBio?: string;
+  website?: string;
+  linkedin?: string;
+  aiClassification?: 'Green' | 'Yellow' | 'Red';
+}
+
 export interface LevelData {
   id: number;
   title: string;
@@ -87,9 +123,9 @@ export interface TaskRecord {
     score: number;
     feedback: string;
     isReadyForHuman: boolean;
-    readinessScore?: number;
-    criticalFeedback?: string;
     suggestedNextSteps?: string[];
+    criticalFeedback?: string;
+    readinessScore?: number;
   };
 }
 
@@ -106,6 +142,8 @@ export enum FiltrationStage {
   LANDING = 'LANDING', 
   WELCOME = 'WELCOME', 
   DASHBOARD = 'DASHBOARD',
+  INCUBATION_APPLY = 'INCUBATION_APPLY',
+  SCREENING_WAIT = 'SCREENING_WAIT',
   AI_MENTOR_CONCEPT = 'AI_MENTOR_CONCEPT',
   ROADMAP = 'ROADMAP',
   TOOLS = 'TOOLS',
@@ -115,92 +153,17 @@ export enum FiltrationStage {
   INCUBATION_PROGRAM = 'INCUBATION_PROGRAM',
   MEMBERSHIPS = 'MEMBERSHIPS',
   PARTNER_CONCEPT = 'PARTNER_CONCEPT',
-  FOREIGN_INVESTMENT = 'FOREIGN_INVESTMENT',
-  PATH_FINDER = 'PATH_FINDER',
-  STAFF_PORTAL = 'STAFF_PORTAL'
+  FOREIGN_INVESTMENT = 'FOREIGN_INVESTMENT'
 }
-
-// Added missing models for services and components
-export interface UserRecord {
-  uid: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: UserRole;
-  phone: string;
-  earnedBadges?: string[];
-  founderBio?: string;
-}
-
-export type ProjectTrack = 'Idea' | 'Prototype' | 'Product' | 'MVP' | 'Growth' | 'Investment Ready';
-
-export interface StartupRecord {
-  projectId: string;
-  ownerId: string;
-  ownerName: string;
-  name: string;
-  description: string;
-  industry: string;
-  status: 'PENDING' | 'APPROVED' | 'STALLED';
-  metrics: { readiness: number; tech: number; market: number };
-  aiOpinion: string;
-  lastActivity: string;
-  partners: Partner[];
-  currentTrack?: ProjectTrack;
-  startupBio?: string;
-  website?: string;
-  linkedin?: string;
-  aiClassification?: 'Green' | 'Yellow' | 'Red';
-}
-
-export interface PartnerProfile {
-  uid: string;
-  name: string;
-  email: string;
-  primaryRole: 'CTO' | 'COO' | 'CMO' | 'CPO' | 'Finance';
-  experienceYears: number;
-  bio: string;
-  linkedin: string;
-  skills: string[];
-  availabilityHours: number;
-  commitmentType: 'Part-time' | 'Full-time';
-  city: string;
-  isRemote: boolean;
-  workStyle: 'Fast' | 'Structured';
-  goals: 'Long-term' | 'Exit' | 'Growth';
-  isVerified: boolean;
-  profileCompletion: number;
-}
-
-export interface MatchResult {
-  id: string;
-  name: string;
-  role: string;
-  avatar: string;
-  partnerUid: string;
-  scores: {
-    roleFit: number;
-    experienceFit: number;
-    industryFit: number;
-    styleFit: number;
-  };
-  totalScore: number;
-  reason: string;
-  reasoning: string[];
-  risk: string;
-}
-
-export const DIGITAL_SHIELDS = [
-  { id: 's1', name: 'التحقق الاستراتيجي', icon: '🎯', color: 'from-blue-400 to-blue-600' },
-  { id: 's2', name: 'هيكلة الأعمال', icon: '📊', color: 'from-emerald-400 to-emerald-600' },
-  { id: 's3', name: 'هندسة المنتج', icon: '🛠️', color: 'from-amber-400 to-amber-600' },
-];
 
 export const SECTORS = [
-  { value: 'Technology', label: 'التقنية والبرمجيات' },
+  { value: 'Technology', label: 'التقنية' },
   { value: 'Fintech', label: 'التقنية المالية' },
-  { value: 'Food', label: 'الأغذية والمشروبات' },
-  { value: 'Industrial', label: 'القطاع الصناعي' },
+  { value: 'Edtech', label: 'تقنيات التعليم' },
+  { value: 'Healthtech', label: 'التقنية الصحية' },
+  { value: 'Retail', label: 'التجزئة' },
+  { value: 'Industrial', label: 'صناعي' },
+  { value: 'Food', label: 'أغذية' }
 ];
 
 export interface ServicePackage {
@@ -218,28 +181,27 @@ export interface ServiceItem {
   packages: ServicePackage[];
 }
 
-export const SERVICES_CATALOG: ServiceItem[] = [
-  {
-    id: 's1',
-    title: 'تصميم الهوية البصرية',
-    description: 'بناء هوية تجارية متكاملة تعكس روح مشروعك الناشئ.',
-    icon: '🎨',
-    packages: [
-      { id: 'p1', name: 'الأساسية', price: '١٥٠٠ ريال', features: ['شعار', 'ألوان', 'خطوط'] },
-      { id: 'p2', name: 'المتكاملة', price: '٣٠٠٠ ريال', features: ['شعار', 'قرطاسية', 'دليل الهوية'] }
-    ]
-  }
-];
-
 export interface ServiceRequest {
   id: string;
   uid: string;
   serviceId: string;
   packageId: string;
   details: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED';
-  createdAt: string;
+  status: 'PENDING' | 'COMPLETED';
 }
+
+export const SERVICES_CATALOG: ServiceItem[] = [
+  {
+    id: 'design',
+    title: 'تصميم الهوية والبصمة',
+    description: 'بناء هوية بصرية متكاملة تعكس روح مشروعك.',
+    icon: '🎨',
+    packages: [
+      { id: 'p1', name: 'الباقة الأساسية', price: '١٥٠٠ ر.س', features: ['شعار', 'بطاقة عمل'] },
+      { id: 'p2', name: 'الباقة المتكاملة', price: '٤٥٠٠ ر.س', features: ['دليل هوية', 'قوالب تواصل'] }
+    ]
+  }
+];
 
 export interface OpportunityAnalysis {
   newMarkets: { region: string; reasoning: string; potentialROI: string }[];
@@ -253,16 +215,16 @@ export interface ProgramRating {
   submittedAt: string;
 }
 
-export interface ApplicantProfile {
-  codeName: string;
-  projectStage: ProjectTrack;
-  sector: string;
-  goal: string;
-  techLevel: 'Low' | 'Medium' | 'High';
-}
-
 export type ProjectStageType = 'Idea' | 'Prototype' | 'Product';
 export type TechLevelType = 'Low' | 'Medium' | 'High';
+
+export interface ApplicantProfile {
+  codeName: string;
+  projectStage: ProjectStageType;
+  sector: string;
+  goal: string;
+  techLevel: TechLevelType;
+}
 
 export interface PersonalityQuestion {
   id: number;
@@ -286,6 +248,19 @@ export interface RadarMetrics {
   ethics: number;
 }
 
+export interface ProjectEvaluationResult {
+  clarity: number;
+  value: number;
+  innovation: number;
+  market: number;
+  readiness: number;
+  totalScore: number;
+  classification: 'Green' | 'Yellow' | 'Red';
+  strengths: string[];
+  weaknesses: string[];
+  aiOpinion: string;
+}
+
 export interface FinalResult {
   score: number;
   isQualified: boolean;
@@ -295,31 +270,20 @@ export interface FinalResult {
   badges: Badge[];
 }
 
-export interface ProjectEvaluationResult {
-  totalScore: number;
-  classification: 'Green' | 'Yellow' | 'Red';
-  clarity: number;
-  value: number;
-  innovation: number;
-  market: number;
-  readiness: number;
-  strengths: string[];
-  weaknesses: string[];
-  aiOpinion: string;
-}
-
 export type AgentCategory = 'Vision' | 'Market' | 'User' | 'Opportunity';
 
 export interface AIAgent {
   id: string;
   name: string;
-  description: string;
   category: AgentCategory;
+  description: string;
 }
 
 export const AVAILABLE_AGENTS: AIAgent[] = [
-  { id: 'v1', name: 'خبير الرؤية', description: 'صياغة رؤية بعيدة المدى.', category: 'Vision' },
-  { id: 'm1', name: 'محلل السوق', description: 'دراسة التوجهات والمنافسين.', category: 'Market' },
+  { id: 'a1', name: 'محلل الرؤية', category: 'Vision', description: 'صياغة رؤية بعيدة المدى.' },
+  { id: 'a2', name: 'محلل السوق', category: 'Market', description: 'دراسة حجم السوق والمنافسين.' },
+  { id: 'a3', name: 'محلل المستخدم', category: 'User', description: 'تحديد ملفات العملاء.' },
+  { id: 'a4', name: 'مكتشف الفرص', category: 'Opportunity', description: 'اكتشاف ثغرات السوق.' }
 ];
 
 export interface ProjectBuildData {
@@ -330,7 +294,7 @@ export interface ProjectBuildData {
   results?: {
     vision?: string;
     marketAnalysis?: string;
-    userPersonas?: string;
+    userPersonas?: string[];
     hypotheses?: string[];
     pitchDeck?: { title: string; content: string }[];
   };
@@ -362,19 +326,20 @@ export interface ActivityLogRecord {
   color: string;
 }
 
+export type ProjectTrack = 'Idea' | 'MVP' | 'Growth' | 'Investment Ready';
+
 export const TASKS_CONFIG = [
-  { title: 'تحليل المشكلة', id: 't1' },
-  { title: 'نموذج العمل', id: 't2' },
+  { id: 't1', title: 'خطة العمل' },
+  { id: 't2', title: 'دراسة الجدوى' }
 ];
 
 export interface NominationData {
   companyName: string;
   founderName: string;
   location: string;
-  pitchDeckUrl?: string;
+  pitchDeckUrl: string;
   hasCommercialRegister: 'YES' | 'NO' | 'IN_PROGRESS';
   hasTechnicalPartner: boolean;
-  isCommitted10Hours: boolean;
   problemStatement: string;
   targetCustomerType: string[];
   marketSize: 'SMALL' | 'MEDIUM' | 'LARGE' | 'UNKNOWN';
@@ -382,18 +347,20 @@ export interface NominationData {
   productStage: 'IDEA' | 'PROTOTYPE' | 'MVP' | 'TRACTION';
   topFeatures: string;
   executionPlan: 'NONE' | 'GENERAL' | 'WEEKLY';
-  userCount: '0' | '1-10' | '11-50' | '50+';
+  userCount: '0 (بداية)' | '1-10' | '11-50' | '50+ مستخدم';
+  tractionEvidence: string[];
   revenueModel: 'NOT_SET' | 'SUBSCRIPTION' | 'COMMISSION' | 'ANNUAL' | 'PAY_PER_USE';
   customerAcquisitionPath: string;
   incubationReason: string;
   weeklyHours: 'LESS_5' | '5-10' | '10-20' | '20+';
   agreesToWeeklySession: boolean;
   agreesToKPIs: boolean;
+  isCommitted10Hours: boolean;
+  currentResources: string[];
   demoUrl?: string;
 }
 
 export interface NominationResult {
-  aiScore: number;
   totalScore: number;
   category: 'DIRECT_ADMISSION' | 'INTERVIEW' | 'PRE_INCUBATION' | 'REJECTION';
   redFlags: string[];
@@ -413,6 +380,42 @@ export interface MentorProfile {
   tags: string[];
 }
 
+export interface PartnerProfile {
+  uid: string;
+  name: string;
+  email: string;
+  primaryRole: 'CTO' | 'COO' | 'CMO' | 'CPO' | 'Finance';
+  experienceYears: number;
+  bio: string;
+  linkedin: string;
+  skills: string[];
+  availabilityHours: number;
+  commitmentType: 'Full-time' | 'Part-time' | 'Flexible';
+  city: string;
+  isRemote: boolean;
+  workStyle: 'Fast' | 'Structured' | 'Balanced';
+  goals: 'Short-term' | 'Long-term' | 'Exit';
+  isVerified: boolean;
+  profileCompletion: number;
+}
+
+export interface MatchResult {
+  id: string;
+  partnerUid: string;
+  name: string;
+  role: string;
+  avatar?: string;
+  totalScore: number;
+  reasoning: string[];
+  risk: string;
+  scores: {
+    roleFit: number;
+    experienceFit: number;
+    industryFit: number;
+    styleFit: number;
+  };
+}
+
 export interface TemplateField {
   id: string;
   label: string;
@@ -426,30 +429,30 @@ export interface Template {
   title: string;
   description: string;
   icon: string;
-  isMandatory: boolean;
   role: UserRole[];
+  isMandatory: boolean;
   fields: TemplateField[];
 }
 
 export interface TemplateSubmission {
   templateId: string;
   data: Record<string, string>;
+  status: 'DRAFT' | 'APPROVED' | 'REVISION_REQUIRED';
   aiScore: number;
   aiFeedback: string;
-  status: 'DRAFT' | 'APPROVED' | 'REVISION_REQUIRED';
   updatedAt: string;
 }
 
 export const TEMPLATES_LIBRARY: Template[] = [
   {
-    id: 'bmc',
-    title: 'مخطط نموذج العمل',
-    description: 'هيكلة القيمة والإيرادات.',
-    icon: '📊',
-    isMandatory: true,
+    id: 'deck_outline',
+    title: 'مخطط العرض التقديمي',
+    description: 'صياغة هيكل Pitch Deck مقنع.',
+    icon: '📽️',
     role: ['STARTUP'],
+    isMandatory: true,
     fields: [
-      { id: 'vp', label: 'القيمة المقترحة', type: 'textarea', placeholder: '...', instruction: 'ما الذي يميزك؟' }
+      { id: 'problem', label: 'المشكلة', type: 'textarea', placeholder: '...', instruction: 'صف المشكلة بوضوح.' }
     ]
   }
 ];

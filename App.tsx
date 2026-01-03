@@ -19,6 +19,8 @@ import { PartnerConceptPage } from './components/PartnerConceptPage';
 import { AIMentorConceptPage } from './components/AIMentorConceptPage';
 import { CoFounderPortal } from './components/CoFounderPortal';
 import { ForeignInvestmentPage } from './components/ForeignInvestmentPage';
+import { IncubationApply } from './components/IncubationApply';
+import { ScreeningPortal } from './components/ScreeningPortal';
 
 function App() {
   const [stage, setStage] = useState<FiltrationStage>(FiltrationStage.LANDING);
@@ -31,13 +33,6 @@ function App() {
   );
 
   const t = getTranslation(currentLang);
-
-  useEffect(() => {
-    document.documentElement.dir = t.dir;
-    document.documentElement.lang = currentLang;
-    document.body.style.fontFamily = t.font + ', sans-serif';
-    localStorage.setItem('preferred_language', currentLang);
-  }, [currentLang, t]);
 
   const hydrateSession = useCallback(() => {
     const session = storageService.getCurrentSession();
@@ -61,7 +56,19 @@ function App() {
           startupDescription: startup?.description || '',
           industry: startup?.industry || '',
         });
-        setStage(FiltrationStage.DASHBOARD);
+        
+        // Logical Routing based on Application Status
+        if (userRec.role === 'STARTUP' && startup) {
+          if (startup.applicationStatus === 'PENDING_SCREENING' || startup.applicationStatus === 'REJECTED') {
+            setStage(FiltrationStage.INCUBATION_APPLY);
+          } else if (startup.applicationStatus === 'APPROVED') {
+            setStage(FiltrationStage.DASHBOARD);
+          } else {
+            setStage(FiltrationStage.SCREENING_WAIT);
+          }
+        } else {
+          setStage(FiltrationStage.DASHBOARD);
+        }
       }
     }
   }, []);
@@ -72,25 +79,19 @@ function App() {
 
   const handleLoginSuccess = (user: any) => {
     setCurrentUser(user);
-    setStage(FiltrationStage.DASHBOARD);
+    hydrateSession();
   };
 
   const handleRegister = (profile: UserProfile) => {
     storageService.registerUser({ ...profile }); 
     hydrateSession();
-    setStage(FiltrationStage.DASHBOARD);
-  };
-
-  const startRegistration = (role: UserRole) => {
-    setRegistrationRole(role);
-    setStage(FiltrationStage.WELCOME);
   };
 
   return (
     <div className={`antialiased ${t.dir === 'rtl' ? 'text-right' : 'text-left'}`} dir={t.dir}>
       {stage === FiltrationStage.LANDING && (
         <LandingPage 
-          onStart={() => startRegistration('STARTUP')} 
+          onStart={() => { setRegistrationRole('STARTUP'); setStage(FiltrationStage.WELCOME); }} 
           onPathFinder={() => setStage(FiltrationStage.AI_MENTOR_CONCEPT)} 
           onSmartFeatures={() => {}} 
           onGovDashboard={() => {}} 
@@ -110,24 +111,15 @@ function App() {
         />
       )}
 
-      {stage === FiltrationStage.FOREIGN_INVESTMENT && (
-        <ForeignInvestmentPage 
-          onBack={() => setStage(FiltrationStage.LANDING)} 
-          onApply={() => startRegistration('STARTUP')} 
-        />
+      {stage === FiltrationStage.INCUBATION_APPLY && currentUser && (
+        <IncubationApply user={currentUser} onSubmitted={hydrateSession} />
       )}
 
-      {stage === FiltrationStage.PARTNER_CONCEPT && (
-        <PartnerConceptPage 
-          onRegister={() => startRegistration('PARTNER')} 
-          onBack={() => setStage(FiltrationStage.LANDING)} 
-        />
-      )}
-
-      {stage === FiltrationStage.AI_MENTOR_CONCEPT && (
-        <AIMentorConceptPage 
-          onStart={() => setStage(FiltrationStage.PATH_FINDER)} 
-          onBack={() => setStage(FiltrationStage.LANDING)} 
+      {stage === FiltrationStage.SCREENING_WAIT && currentUser && (
+        <ScreeningPortal 
+          startup={storageService.getAllStartups().find(s => s.projectId === currentUser.startupId)!} 
+          onContinue={() => setStage(FiltrationStage.DASHBOARD)}
+          onRetry={() => setStage(FiltrationStage.INCUBATION_APPLY)}
         />
       )}
 
@@ -144,17 +136,9 @@ function App() {
           lang={currentLang}
           role={registrationRole}
           onRegister={handleRegister} 
-          onStaffLogin={() => setStage(FiltrationStage.STAFF_PORTAL)} 
+          onStaffLogin={() => {}} 
         />
       )}
-
-      {stage === FiltrationStage.PATH_FINDER && <PathFinder onApproved={() => startRegistration('STARTUP')} onBack={() => setStage(FiltrationStage.LANDING)} />}
-      {stage === FiltrationStage.ROADMAP && <RoadmapPage onStart={() => startRegistration('STARTUP')} onBack={() => setStage(FiltrationStage.LANDING)} />}
-      {stage === FiltrationStage.TOOLS && <ToolsPage onBack={() => setStage(FiltrationStage.LANDING)} />}
-      {stage === FiltrationStage.ACHIEVEMENTS && <AchievementsPage onBack={() => setStage(FiltrationStage.LANDING)} />}
-      {stage === FiltrationStage.MENTORSHIP && <MentorshipPage onBack={() => setStage(FiltrationStage.LANDING)} />}
-      {stage === FiltrationStage.INCUBATION_PROGRAM && <IncubationProgram onBack={() => setStage(FiltrationStage.LANDING)} onApply={() => startRegistration('STARTUP')} />}
-      {stage === FiltrationStage.MEMBERSHIPS && <MembershipsPage onBack={() => setStage(FiltrationStage.LANDING)} onSelect={() => startRegistration('STARTUP')} />}
 
       {stage === FiltrationStage.DASHBOARD && currentUser && (
         currentUser.role === 'PARTNER' ? (
